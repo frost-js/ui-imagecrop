@@ -372,6 +372,10 @@ export default class ImageCrop extends BaseComponent {
 
         $.setAttribute(canvas, { width, height });
 
+        if (canvas.width !== width || canvas.height !== height) {
+            throw new RangeError('Output dimensions exceed the supported canvas size.');
+        }
+
         const [x1, y1, x2, y2] = this.getBounds();
 
         context.drawImage(this.#canvas, x1, y1, x2 - x1, y2 - y1, 0, 0, width, height);
@@ -570,6 +574,13 @@ export default class ImageCrop extends BaseComponent {
 
         $.addEvent(this.#container, 'mousedown.ui.imagecrop touchstart.ui.imagecrop', dragEvent);
 
+        $.addEvent(this.#container, 'touchend.ui.imagecrop', (e) => {
+            if (e.touches.length === 1) {
+                // Resume panning from the remaining finger's position.
+                lastPos = getPosition(e);
+            }
+        });
+
         if (this.options.resize) {
             let lastPos;
             let image;
@@ -639,14 +650,7 @@ export default class ImageCrop extends BaseComponent {
                 $.triggerEvent(this.node, 'update.ui.imagecrop');
             };
 
-            const upEvent = (e) => {
-                if (e.touches.length === 1) {
-                    // Resume panning from the remaining finger's position after a pinch.
-                    lastPos = getPosition(e);
-                }
-            };
-
-            const dragEvent = $.mouseDragFactory(downEvent, moveEvent, upEvent, { touches: 2 });
+            const dragEvent = $.mouseDragFactory(downEvent, moveEvent, null, { touches: 2 });
 
             $.addEvent(this.#container, 'touchstart.ui.imagecrop', dragEvent);
 

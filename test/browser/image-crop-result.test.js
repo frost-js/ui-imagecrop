@@ -156,6 +156,15 @@ test.describe('ImageCrop results', () => {
                 await expect(page.evaluate((size) => $.getData('#crop', 'imagecrop').result({ size }), size)).rejects.toThrow();
             });
         }
+
+        for (const dimension of ['width', 'height']) {
+            test(`rejects an unrepresentable canvas ${dimension}`, async ({ page }) => {
+                await expect(page.evaluate((dimension) => $.getData('#crop', 'imagecrop').result({
+                    type: 'canvas',
+                    size: { width: 1, height: 1, [dimension]: 2 ** 32 },
+                }), dimension)).rejects.toThrow('Output dimensions exceed the supported canvas size.');
+            });
+        }
     });
 
     test.describe('quality option', () => {

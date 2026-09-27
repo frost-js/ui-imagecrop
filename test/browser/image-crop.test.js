@@ -640,10 +640,15 @@ test.describe('ImageCrop', () => {
             });
         }
 
-        for (const remaining of [50, 250]) {
-            test(`resumes panning from the remaining touch at ${remaining} after a pinch`, async ({ page }) => {
-                const movement = await page.evaluate(async (remaining) => {
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+        for (const { remaining, zoom } of [
+            { remaining: 50, zoom: true },
+            { remaining: 250, zoom: true },
+            { remaining: 50, zoom: false },
+            { remaining: 250, zoom: false },
+        ]) {
+            test(`resumes panning from the remaining touch at ${remaining} with zoom ${zoom}`, async ({ page }) => {
+                const movement = await page.evaluate(async ({ remaining, zoom }) => {
+                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), { zoom });
                     await crop.load(window.imageFile, { zoom: 1 });
                     const container = document.querySelector('#crop .overflow-hidden');
                     const canvas = document.querySelector('#crop canvas');
@@ -655,7 +660,7 @@ test.describe('ImageCrop', () => {
                     ]) {
                         const event = new Event(type, { bubbles: true, cancelable: true });
                         Object.defineProperty(event, 'touches', { value: positions.map((pageX) => ({ pageX, pageY: 100 })) });
-                        (type === 'touchstart' ? container : window).dispatchEvent(event);
+                        container.dispatchEvent(event);
                         await Promise.resolve();
                     }
                     const before = canvas.getBoundingClientRect();
@@ -669,10 +674,10 @@ test.describe('ImageCrop', () => {
                     window.dispatchEvent(end);
                     await Promise.resolve();
                     return { x: after.x - before.x, y: after.y - before.y };
-                }, remaining);
+                }, { remaining, zoom });
                 expect(movement.x).toBeCloseTo(1);
                 expect(movement.y).toBeCloseTo(2);
-                expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBeCloseTo(1 + 100 / Math.hypot(300, 300));
+                expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBeCloseTo(zoom ? 1 + 100 / Math.hypot(300, 300) : 1);
             });
         }
 

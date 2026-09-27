@@ -367,6 +367,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				width,
 				height
 			});
+			if (canvas.width !== width || canvas.height !== height) throw new RangeError("Output dimensions exceed the supported canvas size.");
 			const [x1, y1, x2, y2] = this.getBounds();
 			context.drawImage(this.#canvas, x1, y1, x2 - x1, y2 - y1, 0, 0, width, height);
 			if (circle || this.options.circle) {
@@ -491,6 +492,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			};
 			const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent);
 			_fr0st_query.default.addEvent(this.#container, "mousedown.ui.imagecrop touchstart.ui.imagecrop", dragEvent);
+			_fr0st_query.default.addEvent(this.#container, "touchend.ui.imagecrop", (e) => {
+				if (e.touches.length === 1) lastPos = (0, _fr0st_ui.getPosition)(e);
+			});
 			if (this.options.resize) {
 				let lastPos;
 				let image;
@@ -532,10 +536,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					this.#updatePreview();
 					_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
 				};
-				const upEvent = (e) => {
-					if (e.touches.length === 1) lastPos = (0, _fr0st_ui.getPosition)(e);
-				};
-				const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent, upEvent, { touches: 2 });
+				const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent, null, { touches: 2 });
 				_fr0st_query.default.addEvent(this.#container, "touchstart.ui.imagecrop", dragEvent);
 				_fr0st_query.default.addEvent(this.#container, "wheel.ui.imagecrop", (e) => {
 					if (!this.node || !this.#img || this.#cancelLoad) return;
