@@ -1,12 +1,14 @@
 # ImageCrop 3.0 migration proposal
 
-Propose releasing `@fr0st/ui-imagecrop` **3.0.0**, aligned with the local `../ui`, `../ui-authcodeinput`, and `../ui-sortable` repositories. Steps 1 and 2 are implemented: package/configuration updates, Vite outputs, the reference browser harness, and the UI 4 class/lifecycle migration. The wider behavior coverage, styling, documentation, and CI work remain for subsequent steps.
+Propose releasing `@fr0st/ui-imagecrop` **3.0.0**, aligned with the local `../ui`, `../ui-authcodeinput`, and `../ui-sortable` repositories. Steps 1 and 2 are implemented: package/configuration updates, Vite outputs, the reference browser harness, and the UI 4 class/lifecycle migration. Step 3 is complete, with comprehensive image behavior coverage verified across Chromium, Firefox, and WebKit. Styling, documentation, and CI remain for step 4.
 
 The main compatibility change is Frost UI 4's component model. The migrated ImageCrop uses the inherited `node` and `options` getters, static defaults/classes, private fields and methods, and typed JSDoc. The prototype directory has been removed; `src/index.js` now only registers and exports the class.
 
-Step 2 adds 55 regression cases following the reference describe groups and class/QuerySet patterns. They cover initialization, option validation, disposal, superseded loads, failed replacements, public methods, update-listener disposal, resize geometry, malformed metadata, and EXIF orientation being applied once. Assertions use locators for DOM behavior and numeric/pixel checks for image behavior. Full EXIF 1–8, touch/pinch, option, and export coverage remains in step 3.
+Step 2 adds 55 regression cases following the reference describe groups and class/QuerySet patterns. They cover initialization, option validation, disposal, superseded loads, failed replacements, public methods, update-listener disposal, resize geometry, malformed metadata, and EXIF orientation being applied once. Assertions use locators for DOM behavior and numeric/pixel checks for image behavior. Step 3 expands the suite to 153 cases, with dedicated EXIF and result suites following the reference pattern for complex behavior.
 
-Validation: build and lint pass. All 55 regression cases have been verified across Chromium, Firefox, and WebKit. The resize-position assertion uses numeric tolerance for subpixel rounding and was rerun successfully in all three browsers after correction.
+Step 3 covers all eight EXIF orientations in both TIFF byte orders, disabled orientation handling, malformed metadata and recovery, four-corner preview/export pixels, PNG/JPEG base64 and Blob decoding, output dimensions and quality, circular masking, backgrounds, and output limits. Mouse tests cover LTR/RTL panning, boundaries, wheel zoom, resize constraints, and disabled options. Synthetic touch events follow UI's test convention and exercise single-touch panning, pinch zoom, cancellation, and gestures interrupted by replacement or disposal. Load failures and explicit offsets, rotation round trips, bounds resizing, and update events also have regression coverage.
+
+Validation: build and lint pass, and rebuilding leaves tracked bundles unchanged. All 153 cases pass in Chromium, Firefox, and WebKit: 459 checks, with no failures or skips. Chromium source coverage reports 99.67% lines, 99.49% statements, 97.98% branches, and 100% functions. The Codecov-ready LCOV report covers 390 of 392 executable lines (99.49%), exceeding the planned 95% target. Coverage includes `src/helpers.js`, `src/image-crop.js`, and `src/index.js`, with only the existing re-export-only browser entry exclusion.
 
 Loading now rejects superseded/disposed requests with `AbortError`, rejects malformed or undecodable files without replacing the previous image, and releases temporary object URLs. Image operations before loading or after disposal throw/reject a descriptive error. Rotation requires finite quarter turns; bounds, zoom, and output dimensions are validated. EXIF normalization changes a newly read buffer, not the caller's Blob. Rectangular circular exports use a centered circle whose diameter fits the smaller output dimension.
 
@@ -127,7 +129,7 @@ These findings originated in the initial source review and isolated reproduction
 
 Fixed in step 2: UI 4 field access, truncated EXIF failures and unresolved loads, stale mirroring, arbitrary-angle rotation, negative resize dimensions, loading/disposal races, pre-load operations, post-rotation offset clamping, EXIF double orientation, and numeric output dimensions. Additional review found that resizing without boundary enforcement shifted the image horizontally; the resize regression now checks that the canvas position stays fixed. Circular output is bounded by both dimensions, and failed Blob encoding rejects instead of resolving with `null`.
 
-Still scheduled: the methods/download demo fixes and styling/README alignment in step 4, and comprehensive image behavior/coverage work in step 3. No bundle tests or custom server/port conventions were introduced.
+No new production defects were found in step 3: the expanded tests pass across all three browsers and confirm the step 2 geometry, orientation, and export behavior. Still scheduled in step 4: the methods/download demo fixes, styling/README alignment, and CI/publishing configuration. No bundle tests or custom server/port conventions were introduced.
 
 | Finding | Evidence | Proposed treatment |
 | --- | --- | --- |
@@ -140,7 +142,7 @@ Still scheduled: the methods/download demo fixes and styling/README alignment in
 | Unsafe asynchronous lifecycle | One shared FileReader/Image has handlers replaced by every load; `dispose()` neither aborts the reader nor detaches image callbacks. | Fixed with per-load resources and cancellation; covered by step 2 load/disposal regressions. |
 | Gestures and methods can run before loading | Events are attached in the constructor before image dimensions, offsets, and zoom exist. | Gate interactions and define not-ready method behavior. |
 | Rotation does not reclamp offsets | `rotate()` clamps zoom but omits the offset clamp used by other geometry changes. | Test non-square previews near image edges, then clamp if needed. |
-| Possible double/wrong EXIF orientation | The original loader manually rotates an ordinary browser-decoded image. | Step 2 normalizes the metadata before decoding and tests orientations 2 and 6, including disabled orientation handling. The full matrix remains in step 3. |
+| Possible double/wrong EXIF orientation | The original loader manually rotates an ordinary browser-decoded image. | Step 2 normalizes the metadata before decoding and tests orientations 2 and 6, including disabled orientation handling. Step 3 verifies all eight orientations, both TIFF byte orders, and disabled orientation handling with four-color pixel assertions. |
 | Methods demo references the wrong control | `demo/methods.html:42` declares `cropSetZooms` from `#cropDispose`, then uses undeclared `cropSetZoom`; `output` also relies on named window properties. | Use explicit selectors and correct variable names. |
 | Download URL is never released | `demo/result-blob.html` calls `URL.createObjectURL` without `URL.revokeObjectURL`. | Revoke after the download has been initiated safely. |
 | Export edge cases need an explicit contract | Canvas width/height attributes include `px`; circle radius uses width alone for rectangular output; unknown result types silently produce a canvas. | Use numeric canvas dimensions, specify rectangular circle behavior, and validate/document result options with pixel tests. |
@@ -150,7 +152,7 @@ Still scheduled: the methods/download demo fixes and styling/README alignment in
 
 1. Update package/configuration and Vite outputs; establish the local browser harness.
 2. Migrate the class and lifecycle to UI 4, adding regression coverage for the identified defects.
-3. Complete image geometry, EXIF, interaction, and export coverage across browsers.
+3. **Complete:** image geometry, EXIF, interaction, and export coverage across browsers (153 cases; 459 passing browser checks).
 4. Align styling, README, demos, CI, and publishing configuration; regenerate tracked bundles.
 5. Run `npx sort-package-json`, clean-install validation, lint, build, all three browser suites, Chromium coverage, and package-content validation. Verify a second build leaves `dist/` unchanged.
 
