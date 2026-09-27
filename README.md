@@ -142,7 +142,7 @@ render.addEventListener('click', async () => {
 
 Always await `load()` before using image methods. Calling `ImageCrop.init()` again for the same host returns the existing instance. Dispose it before changing options. Existing host content is preserved.
 
-See [the demo](./demo/index.html) for file selection, option controls, methods/events, all output formats, and an EXIF gallery. Serve the repository with a static HTTP server and open `demo/index.html`; the demo loads UI from npm's CDN and ImageCrop from the local `dist/` directory.
+See [the demo](./demo/index.html) for file selection, option controls, methods/events, and all output formats. Serve the repository with a static HTTP server and open `demo/index.html`; the demo loads UI from npm's CDN and ImageCrop from the local `dist/` directory.
 
 ## Options
 

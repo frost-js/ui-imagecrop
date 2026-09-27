@@ -10,14 +10,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui-bundle.min.js" defer></script>
     <script src="../dist/frost-ui-imagecrop.js" defer></script>
     <script src="assets/test.js" defer></script>
-    <script src="assets/exif1.js" defer></script>
-    <script src="assets/exif2.js" defer></script>
-    <script src="assets/exif3.js" defer></script>
-    <script src="assets/exif4.js" defer></script>
-    <script src="assets/exif5.js" defer></script>
-    <script src="assets/exif6.js" defer></script>
-    <script src="assets/exif7.js" defer></script>
-    <script src="assets/exif8.js" defer></script>
     <script src="assets/demo.js" defer></script>
 </head>
 
@@ -49,7 +41,6 @@
                     <a class="btn btn-primary ripple" href="#workspace">Crop an image</a>
                     <a class="btn btn-secondary ripple" href="#methods-events">Try the API</a>
                     <a class="btn btn-outline-primary ripple" href="#results">Export</a>
-                    <a class="btn btn-outline-primary ripple" href="#exif">EXIF gallery</a>
                 </nav>
             </div>
         </section>
@@ -250,7 +241,7 @@
                                     <label class="form-check-label" for="result-fill">Fill background</label>
                                 </div>
                                 <label class="visually-hidden" for="result-background">Background color</label>
-                                <input class="input-outline input-color w-auto" id="result-background" type="color" value="#ffffff" disabled>
+                                <input class="input-outline input-color" id="result-background" type="color" value="#ffffff" disabled>
                             </div>
                             <button class="btn btn-primary ripple mt-4" type="submit">Render result</button>
                         </fieldset>
@@ -264,72 +255,6 @@
                         </div>
                         <p class="small mt-3" id="result-status" role="status">Ready to export after loading an image.</p>
                         <a class="btn btn-outline-primary ripple align-self-start" id="result-download" hidden>Download image</a>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="mb-5" id="exif">
-            <header class="border-bottom pb-3 mb-4">
-                <span class="text-primary fw-bold">Camera orientation</span>
-                <h2 class="h3 mb-1">Eight EXIF orientations</h2>
-                <p class="text-body-secondary mb-0">Each sample carries a different orientation tag. ImageCrop applies it once, including reflections. Disable orientation handling in the main cropper to use raw source pixels.</p>
-            </header>
-            <div class="row g-4">
-                <div class="col-md-6 col-xl-3">
-                    <div class="card card-body p-3 h-100">
-                        <h3 class="h6">1. Normal</h3>
-                        <div class="demo-exif-crop mx-auto my-3" id="exif-1" role="img" aria-label="EXIF 1 corrected preview"></div>
-                        <p class="small text-body-secondary mb-0" id="exif-status-1" role="status">Loading…</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="card card-body p-3 h-100">
-                        <h3 class="h6">2. Mirror horizontally</h3>
-                        <div class="demo-exif-crop mx-auto my-3" id="exif-2" role="img" aria-label="EXIF 2 corrected preview"></div>
-                        <p class="small text-body-secondary mb-0" id="exif-status-2" role="status">Loading…</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="card card-body p-3 h-100">
-                        <h3 class="h6">3. Rotate 180°</h3>
-                        <div class="demo-exif-crop mx-auto my-3" id="exif-3" role="img" aria-label="EXIF 3 corrected preview"></div>
-                        <p class="small text-body-secondary mb-0" id="exif-status-3" role="status">Loading…</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="card card-body p-3 h-100">
-                        <h3 class="h6">4. Mirror vertically</h3>
-                        <div class="demo-exif-crop mx-auto my-3" id="exif-4" role="img" aria-label="EXIF 4 corrected preview"></div>
-                        <p class="small text-body-secondary mb-0" id="exif-status-4" role="status">Loading…</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="card card-body p-3 h-100">
-                        <h3 class="h6">5. Transpose</h3>
-                        <div class="demo-exif-crop mx-auto my-3" id="exif-5" role="img" aria-label="EXIF 5 corrected preview"></div>
-                        <p class="small text-body-secondary mb-0" id="exif-status-5" role="status">Loading…</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="card card-body p-3 h-100">
-                        <h3 class="h6">6. Rotate 90° clockwise</h3>
-                        <div class="demo-exif-crop mx-auto my-3" id="exif-6" role="img" aria-label="EXIF 6 corrected preview"></div>
-                        <p class="small text-body-secondary mb-0" id="exif-status-6" role="status">Loading…</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="card card-body p-3 h-100">
-                        <h3 class="h6">7. Transverse</h3>
-                        <div class="demo-exif-crop mx-auto my-3" id="exif-7" role="img" aria-label="EXIF 7 corrected preview"></div>
-                        <p class="small text-body-secondary mb-0" id="exif-status-7" role="status">Loading…</p>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="card card-body p-3 h-100">
-                        <h3 class="h6">8. Rotate 90° counterclockwise</h3>
-                        <div class="demo-exif-crop mx-auto my-3" id="exif-8" role="img" aria-label="EXIF 8 corrected preview"></div>
-                        <p class="small text-body-secondary mb-0" id="exif-status-8" role="status">Loading…</p>
                     </div>
                 </div>
             </div>

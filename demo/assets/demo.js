@@ -1,5 +1,5 @@
 const $ = globalThis.$;
-const UI = globalThis.UI;
+const { ImageCrop } = globalThis.UI;
 
 const setTheme = (theme) => {
     if (theme === 'system') {
@@ -7,6 +7,7 @@ const setTheme = (theme) => {
     } else {
         $(document.documentElement).setAttribute('data-ui-theme', theme);
     }
+
     $('[data-demo-theme]').setValue(theme);
 };
 
@@ -16,22 +17,20 @@ setTheme(['light', 'dark'].includes(storedTheme) ? storedTheme : 'system');
 $.ready(() => {
     $('[data-demo-theme]').addEvent('change', (event) => {
         const theme = $.getValue(event.currentTarget);
+
         if (theme === 'system') {
             localStorage.removeItem('frostui-imagecrop-demo-theme');
         } else {
             localStorage.setItem('frostui-imagecrop-demo-theme', theme);
         }
+
         setTheme(theme);
     });
 
-    const node = document.querySelector('#crop');
-    const input = document.querySelector('#image-file');
-    const status = document.querySelector('#load-status');
-    const output = document.querySelector('#method-output');
-    const log = document.querySelector('#event-log');
-    const resultPreview = document.querySelector('#result-preview');
-    const resultStatus = document.querySelector('#result-status');
-    const download = document.querySelector('#result-download');
+    const node = $.findOne('#crop');
+    const input = $.findOne('#image-file');
+    const log = $.findOne('#event-log');
+
     let crop;
     let file;
     let ready = false;
@@ -40,60 +39,71 @@ $.ready(() => {
     let resultUrl;
 
     const updateControls = () => {
-        document.querySelectorAll('[data-image-controls]').forEach((fieldset) => {
-            fieldset.disabled = !ready || loading;
-        });
-        document.querySelector('#result-options').disabled = !ready || loading || exporting;
-        input.disabled = loading;
-        document.querySelector('#sample-load').disabled = loading;
-        document.querySelector('#crop-init').disabled = loading || !!crop || !file;
-        document.querySelector('#crop-dispose').disabled = loading || !crop;
-        document.querySelectorAll('[data-rotate]').forEach((button) => {
-            button.disabled = !crop?.options.rotate;
-        });
-        document.querySelectorAll('[data-zoom], #set-zoom, #zoom-value').forEach((control) => {
-            control.disabled = !crop?.options.zoom;
-        });
-        const custom = document.querySelector('#result-size').value === 'custom';
-        document.querySelector('#result-width').disabled = !custom;
-        document.querySelector('#result-width').required = custom;
-        document.querySelector('#result-height').disabled = !custom;
-        const canvas = document.querySelector('#result-type').value === 'canvas';
-        document.querySelector('#result-format').disabled = canvas;
-        document.querySelector('#result-quality').disabled = canvas || document.querySelector('#result-format').value !== 'jpeg';
-        document.querySelector('#result-background').disabled = !document.querySelector('#result-fill').checked;
+        $.setProperty('[data-image-controls]', 'disabled', !ready || loading);
+        $.setProperty('#result-options', 'disabled', !ready || loading || exporting);
+        $.setProperty('#image-file, #sample-load', 'disabled', loading);
+        $.setProperty('#crop-init', 'disabled', loading || !!crop || !file);
+        $.setProperty('#crop-dispose', 'disabled', loading || !crop);
+        $.setProperty('[data-rotate]', 'disabled', !crop?.options.rotate);
+        $.setProperty('[data-zoom], #set-zoom, #zoom-value', 'disabled', !crop?.options.zoom);
+
+        const custom = $.getValue('#result-size') === 'custom';
+
+        $.setProperty('#result-width', { disabled: !custom, required: custom });
+        $.setProperty('#result-height', 'disabled', !custom);
+
+        const canvas = $.getValue('#result-type') === 'canvas';
+        const jpeg = $.getValue('#result-format') === 'jpeg';
+
+        $.setProperty('#result-format', 'disabled', canvas);
+        $.setProperty('#result-quality', 'disabled', canvas || !jpeg);
+        $.setProperty('#result-background', 'disabled', !$.getProperty('#result-fill', 'checked'));
     };
 
     const describeGeometry = () => {
         const bounds = crop.getBounds().map((value) => Number(value.toFixed(2)));
         const description = `Bounds: ${bounds.join(', ')} · Zoom: ${crop.getZoom().toFixed(3)}`;
-        document.querySelector('#geometry').textContent = description;
+
+        $.setText('#geometry', description);
+
         return description;
     };
 
     const loadFile = async (nextFile, recreate = false) => {
         loading = true;
-        status.textContent = 'Loading image…';
+        $.setText('#load-status', 'Loading image…');
         updateControls();
+
         try {
             nextFile = await nextFile;
+
             if (recreate || !crop) {
                 crop?.dispose();
                 crop = null;
                 ready = false;
-                const options = { previewWidth: 240, previewHeight: 240, maxPreviewWidth: 480, maxPreviewHeight: 400 };
-                document.querySelectorAll('[data-option]').forEach((control) => {
-                    options[control.dataset.option] = control.checked;
+
+                const options = {
+                    previewWidth: 240,
+                    previewHeight: 240,
+                    maxPreviewWidth: 480,
+                    maxPreviewHeight: 400,
+                };
+
+                $('[data-option]').each((control) => {
+                    options[$.getDataset(control, 'option')] = control.checked;
                 });
-                crop = UI.ImageCrop.init(node, options);
+
+                crop = ImageCrop.init(node, options);
             }
+
             await crop.load(nextFile);
             file = nextFile;
             ready = true;
-            status.textContent = 'Image ready. Drag to pan, or use the controls.';
-            output.textContent = describeGeometry();
+
+            $.setText('#load-status', 'Image ready. Drag to pan, or use the controls.');
+            $.setText('#method-output', describeGeometry());
         } catch (error) {
-            status.textContent = error.message;
+            $.setText('#load-status', error.message);
         } finally {
             loading = false;
             updateControls();
@@ -106,115 +116,180 @@ $.ready(() => {
         if (!ready || loading) {
             return;
         }
+
         try {
             callback();
-            output.textContent = describeGeometry();
+            $.setText('#method-output', describeGeometry());
         } catch (error) {
-            output.textContent = error.message;
+            $.setText('#method-output', error.message);
         }
     };
 
-    input.addEventListener('change', () => {
+    $.addEvent(input, 'change', () => {
         if (input.files[0]) {
             loadFile(input.files[0]);
         }
-        input.value = '';
+
+        $.setValue(input, '');
     });
-    document.querySelector('#sample-load').addEventListener('click', loadSample);
-    document.querySelector('#crop-options').addEventListener('change', () => loadFile(file, true));
-    document.querySelector('#crop-init').addEventListener('click', () => loadFile(file));
-    document.querySelector('#crop-dispose').addEventListener('click', () => {
+
+    $.addEvent('#sample-load', 'click', loadSample);
+    $.addEvent('#crop-options', 'change', () => loadFile(file, true));
+    $.addEvent('#crop-init', 'click', () => loadFile(file));
+    $.addEvent('#crop-dispose', 'click', () => {
         crop.dispose();
         crop = null;
         ready = false;
-        status.textContent = 'Disposed. Initialize to reload the current image.';
-        document.querySelector('#geometry').textContent = 'No image loaded.';
-        output.textContent = 'Disposed.';
+
+        $.setText('#load-status', 'Disposed. Initialize to reload the current image.');
+        $.setText('#geometry', 'No image loaded.');
+        $.setText('#method-output', 'Disposed.');
         updateControls();
     });
 
     $.addEvent(node, 'update.ui.imagecrop', () => {
-        const entry = document.createElement('div');
-        entry.className = 'small font-monospace py-2 border-bottom';
-        entry.textContent = `update.ui.imagecrop — ${describeGeometry()}`;
-        log.prepend(entry);
+        const entry = $.create('div', {
+            class: 'small font-monospace py-2 border-bottom',
+        });
+
+        $.setText(entry, `update.ui.imagecrop — ${describeGeometry()}`);
+        $.prepend(log, entry);
+
         if (log.children.length > 20) {
-            log.lastElementChild.remove();
+            $.remove(log.lastElementChild);
         }
     });
-    document.querySelector('#clear-events').addEventListener('click', () => log.replaceChildren());
-    document.querySelectorAll('[data-rotate]').forEach((button) => {
-        button.addEventListener('click', () => run(() => crop.rotate(Number(button.dataset.rotate))));
+
+    $.addEvent('#clear-events', 'click', () => {
+        $.empty(log);
     });
-    document.querySelectorAll('[data-zoom]').forEach((button) => {
-        button.addEventListener('click', () => run(() => crop.setZoom(Math.max(.01, crop.getZoom() + Number(button.dataset.zoom)))));
+
+    $('[data-rotate]').addEvent('click', (event) => {
+        const amount = $.getDataset(event.currentTarget, 'rotate');
+
+        run(() => crop.rotate(amount));
     });
-    document.querySelectorAll('[data-pan]').forEach((button) => {
-        button.addEventListener('click', () => run(() => {
+
+    $('[data-zoom]').addEvent('click', (event) => {
+        const amount = $.getDataset(event.currentTarget, 'zoom');
+
+        run(() => {
+            const zoom = Math.max(.01, crop.getZoom() + amount);
+
+            crop.setZoom(zoom);
+        });
+    });
+
+    $('[data-pan]').addEvent('click', (event) => {
+        const direction = $.getDataset(event.currentTarget, 'pan');
+
+        run(() => {
             const [x1, y1, x2, y2] = crop.getBounds();
             const step = 20 / crop.getZoom();
-            const [dx, dy] = { left: [step, 0], right: [-step, 0], up: [0, step], down: [0, -step] }[button.dataset.pan];
-            crop.setBounds(x1 + dx, y1 + dy, x2 + dx, y2 + dy);
-        }));
-    });
-    document.querySelector('#bounds-form').addEventListener('submit', (event) => {
-        event.preventDefault();
-        run(() => crop.setBounds(...['x1', 'y1', 'x2', 'y2'].map((key) => document.querySelector(`#bounds-${key}`).valueAsNumber)));
-    });
-    document.querySelector('#get-bounds').addEventListener('click', () => run(() => {
-        crop.getBounds().forEach((value, index) => {
-            document.querySelector(`#bounds-${['x1', 'y1', 'x2', 'y2'][index]}`).value = Number(value.toFixed(2));
-        });
-    }));
-    document.querySelector('#zoom-form').addEventListener('submit', (event) => {
-        event.preventDefault();
-        run(() => crop.setZoom(document.querySelector('#zoom-value').valueAsNumber));
-    });
-    document.querySelector('#get-zoom').addEventListener('click', () => run(() => {
-        document.querySelector('#zoom-value').value = crop.getZoom();
-    }));
+            const offsets = {
+                left: [step, 0],
+                right: [-step, 0],
+                up: [0, step],
+                down: [0, -step],
+            };
+            const [dx, dy] = offsets[direction];
 
-    document.querySelector('#result-options').addEventListener('change', updateControls);
-    document.querySelector('#result-form').addEventListener('submit', async (event) => {
+            crop.setBounds(x1 + dx, y1 + dy, x2 + dx, y2 + dy);
+        });
+    });
+
+    $.addEvent('#bounds-form', 'submit', (event) => {
         event.preventDefault();
+
+        run(() => {
+            const bounds = ['x1', 'y1', 'x2', 'y2'].map((key) => $.getProperty(`#bounds-${key}`, 'valueAsNumber'));
+
+            crop.setBounds(...bounds);
+        });
+    });
+
+    $.addEvent('#get-bounds', 'click', () => {
+        run(() => {
+            const keys = ['x1', 'y1', 'x2', 'y2'];
+
+            crop.getBounds().forEach((value, index) => {
+                $.setValue(`#bounds-${keys[index]}`, Number(value.toFixed(2)));
+            });
+        });
+    });
+
+    $.addEvent('#zoom-form', 'submit', (event) => {
+        event.preventDefault();
+
+        run(() => crop.setZoom($.getProperty('#zoom-value', 'valueAsNumber')));
+    });
+
+    $.addEvent('#get-zoom', 'click', () => {
+        run(() => {
+            $.setValue('#zoom-value', crop.getZoom());
+        });
+    });
+
+    $.addEvent('#result-options', 'change', updateControls);
+    $.addEvent('#result-form', 'submit', async (event) => {
+        event.preventDefault();
+
         if (!ready || loading || exporting) {
             return;
         }
+
         exporting = true;
         updateControls();
-        resultStatus.textContent = 'Rendering…';
+        $.setText('#result-status', 'Rendering…');
+
         try {
-            const type = document.querySelector('#result-type').value;
-            const size = document.querySelector('#result-size').value;
+            const type = $.getValue('#result-type');
             const options = {
                 type,
-                format: document.querySelector('#result-format').value,
-                size: size === 'custom' ? {
-                    width: document.querySelector('#result-width').valueAsNumber,
-                    ...(document.querySelector('#result-height').value ? { height: document.querySelector('#result-height').valueAsNumber } : {}),
-                } : size,
-                circle: document.querySelector('#result-circle').checked,
-                background: document.querySelector('#result-fill').checked ? document.querySelector('#result-background').value : null,
+                format: $.getValue('#result-format'),
+                size: $.getValue('#result-size'),
+                circle: $.getProperty('#result-circle', 'checked'),
+                background: $.getProperty('#result-fill', 'checked') ? $.getValue('#result-background') : null,
             };
-            if (type !== 'canvas' && options.format === 'jpeg') {
-                options.quality = document.querySelector('#result-quality').valueAsNumber;
+
+            if (options.size === 'custom') {
+                options.size = { width: $.getProperty('#result-width', 'valueAsNumber') };
+
+                if ($.getValue('#result-height')) {
+                    options.size.height = $.getProperty('#result-height', 'valueAsNumber');
+                }
             }
+
+            if (type !== 'canvas' && options.format === 'jpeg') {
+                options.quality = $.getProperty('#result-quality', 'valueAsNumber');
+            }
+
             const result = await crop.result(options);
             let blob = result;
+
             if (type === 'base64') {
-                blob = await (await fetch(result)).blob();
+                const response = await fetch(result);
+
+                blob = await response.blob();
             } else if (type === 'canvas') {
                 blob = await new Promise((resolve) => result.toBlob(resolve));
             }
+
             if (!blob) {
                 throw new Error('Could not encode the download.');
             }
+
             let preview = result;
             const nextUrl = URL.createObjectURL(blob);
+
             if (type !== 'canvas') {
-                preview = new Image();
-                preview.alt = 'Cropped image result';
-                preview.src = nextUrl;
+                preview = $.create('img', {
+                    attributes: {
+                        alt: 'Cropped image result',
+                        src: nextUrl,
+                    },
+                });
+
                 try {
                     await preview.decode();
                 } catch (error) {
@@ -222,49 +297,44 @@ $.ready(() => {
                     throw error;
                 }
             } else {
-                preview.setAttribute('role', 'img');
-                preview.setAttribute('aria-label', 'Cropped canvas result');
+                $.setAttribute(preview, {
+                    'role': 'img',
+                    'aria-label': 'Cropped canvas result',
+                });
             }
-            resultPreview.replaceChildren(preview);
+
+            $('#result-preview').empty().append(preview);
+
             if (resultUrl) {
                 URL.revokeObjectURL(resultUrl);
             }
+
             resultUrl = nextUrl;
-            download.href = resultUrl;
-            download.download = `crop.${blob.type === 'image/jpeg' ? 'jpg' : 'png'}`;
-            download.hidden = false;
-            resultStatus.textContent = `${type} · ${preview.naturalWidth || preview.width} × ${preview.naturalHeight || preview.height} pixels · ${blob.type} · ${blob.size.toLocaleString()} bytes${type === 'canvas' ? ' (PNG download)' : ''}`;
+            $.setProperty('#result-download', {
+                href: resultUrl,
+                download: `crop.${blob.type === 'image/jpeg' ? 'jpg' : 'png'}`,
+                hidden: false,
+            });
+
+            const width = preview.naturalWidth || preview.width;
+            const height = preview.naturalHeight || preview.height;
+            const size = `${blob.size.toLocaleString()} bytes${type === 'canvas' ? ' (PNG download)' : ''}`;
+
+            $.setText('#result-status', `${type} · ${width} × ${height} pixels · ${blob.type} · ${size}`);
         } catch (error) {
-            resultStatus.textContent = error.message;
+            $.setText('#result-status', error.message);
         } finally {
             exporting = false;
             updateControls();
         }
     });
-    window.addEventListener('pagehide', () => {
+
+    $.addEvent(window, 'pagehide', () => {
         if (resultUrl) {
             URL.revokeObjectURL(resultUrl);
         }
     });
 
+    setTheme(document.documentElement.dataset.uiTheme || 'system');
     loadSample();
-    for (let orientation = 1; orientation <= 8; orientation++) {
-        const exifStatus = document.querySelector(`#exif-status-${orientation}`);
-        const example = UI.ImageCrop.init(document.querySelector(`#exif-${orientation}`), {
-            previewWidth: 180,
-            previewHeight: 180,
-            enforceBoundary: false,
-            minZoom: .01,
-            zoom: false,
-        });
-        fetch(globalThis[`exif${orientation}`])
-            .then((response) => response.blob())
-            .then((file) => example.load(file))
-            .then(() => {
-                exifStatus.textContent = 'Orientation applied.';
-            })
-            .catch((error) => {
-                exifStatus.textContent = error.message;
-            });
-    }
 });

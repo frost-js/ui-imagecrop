@@ -2,8 +2,7 @@
     overflow: auto;
 }
 
-.demo-crop-stage > div,
-.demo-exif-crop {
+.demo-crop-stage > div {
     width: fit-content;
 }
 
