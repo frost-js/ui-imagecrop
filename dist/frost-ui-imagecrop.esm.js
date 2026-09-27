@@ -157,7 +157,7 @@ var ImageCrop = class extends BaseComponent {
 		super.dispose();
 	}
 	/**
-	* Get the image bounds.
+	* Gets the image bounds.
 	* @returns {[number, number, number, number]} The left, top, right, and bottom crop coordinates.
 	*/
 	getBounds() {
@@ -174,7 +174,7 @@ var ImageCrop = class extends BaseComponent {
 		];
 	}
 	/**
-	* Get the image zoom level.
+	* Gets the image zoom level.
 	* @returns {number} The zoom level.
 	*/
 	getZoom() {
@@ -209,7 +209,7 @@ var ImageCrop = class extends BaseComponent {
 			const fail = (error) => {
 				cleanup();
 				if (reader.readyState === FileReader.LOADING) reader.abort();
-				image.removeAttribute("src");
+				$.removeAttribute(image, "src");
 				reject(error);
 			};
 			this.#cancelLoad = () => fail(new DOMException("Image loading was aborted.", "AbortError"));
@@ -339,7 +339,7 @@ var ImageCrop = class extends BaseComponent {
 		});
 	}
 	/**
-	* Rotate the image (in degrees).
+	* Rotates the image (in degrees).
 	* @param {number} [amount=90] The clockwise rotation in multiples of 90 degrees.
 	*/
 	rotate(amount = 90) {
@@ -354,7 +354,7 @@ var ImageCrop = class extends BaseComponent {
 		$.triggerEvent(this.node, "update.ui.imagecrop");
 	}
 	/**
-	* Set the image bounds.
+	* Sets the image bounds.
 	* @param {number} x1 The first image x offset.
 	* @param {number} y1 The first image y offset.
 	* @param {number} x2 The second image x offset.
@@ -382,7 +382,7 @@ var ImageCrop = class extends BaseComponent {
 		$.triggerEvent(this.node, "update.ui.imagecrop");
 	}
 	/**
-	* Set the image zoom level.
+	* Sets the image zoom level.
 	* @param {number} zoom The image zoom level.
 	*/
 	setZoom(zoom) {
@@ -396,7 +396,7 @@ var ImageCrop = class extends BaseComponent {
 		$.triggerEvent(this.node, "update.ui.imagecrop");
 	}
 	/**
-	* Clamp the image offset.
+	* Clamps the image offset.
 	*/
 	#clampOffset() {
 		if (!this.options.enforceBoundary) return;
@@ -406,7 +406,7 @@ var ImageCrop = class extends BaseComponent {
 		this.#offsetY = $._clamp(this.#offsetY, minY, this.#canvasHeight - minY);
 	}
 	/**
-	* Clamp the image zoom level.
+	* Clamps the image zoom level.
 	*/
 	#clampZoom() {
 		this.#zoom = $._clamp(this.#zoom, this.options.minZoom, this.options.maxZoom);
@@ -415,7 +415,7 @@ var ImageCrop = class extends BaseComponent {
 		this.#zoom = Math.max(minZoom, this.#zoom);
 	}
 	/**
-	* Attach events for the ImageCrop.
+	* Attaches events for the ImageCrop.
 	*/
 	#events() {
 		let lastPos;
@@ -443,7 +443,7 @@ var ImageCrop = class extends BaseComponent {
 		});
 	}
 	/**
-	* Attach resize events.
+	* Attaches resize events.
 	*/
 	#eventsResize() {
 		let lastPos;
@@ -468,8 +468,8 @@ var ImageCrop = class extends BaseComponent {
 		$.addEvent(this.#resize, "mousedown.ui.imagecrop", dragEvent);
 	}
 	/**
-	* Attach zoom events.
-	* @param {function(TouchEvent): void} upEvent The pinch end callback.
+	* Attaches zoom events.
+	* @param {(event: TouchEvent) => void} upEvent The pinch end callback.
 	*/
 	#eventsZoom(upEvent) {
 		let lastDist;
@@ -508,7 +508,7 @@ var ImageCrop = class extends BaseComponent {
 		});
 	}
 	/**
-	* Render the ImageCrop.
+	* Renders the ImageCrop.
 	*/
 	#render() {
 		this.#outerContainer = $.create("div", {
@@ -553,7 +553,7 @@ var ImageCrop = class extends BaseComponent {
 		if (!this.#img) throw new Error("Load an image before using ImageCrop.");
 	}
 	/**
-	* Resize the image preview.
+	* Resizes the image preview.
 	* @param {number} width The preview width.
 	* @param {number} height The preview height.
 	*/
@@ -578,7 +578,7 @@ var ImageCrop = class extends BaseComponent {
 		});
 	}
 	/**
-	* Update the preview.
+	* Updates the preview.
 	*/
 	#updatePreview() {
 		const x = (-this.#canvasWidth + this.#offsetX) * this.#zoom + this.#previewWidth / 2;
@@ -586,7 +586,7 @@ var ImageCrop = class extends BaseComponent {
 		$.setStyle(this.#canvas, { transform: `translate3d(${x}px, ${y}px, 0) scale(${this.#zoom})` });
 	}
 	/**
-	* Update the preview canvas.
+	* Updates the preview canvas.
 	*/
 	#updatePreviewCanvas() {
 		$.setAttribute(this.#canvas, {
@@ -602,7 +602,7 @@ var ImageCrop = class extends BaseComponent {
 		this.#context.restore();
 	}
 	/**
-	* Adjust the rotation by an amount.
+	* Adjusts the rotation by an amount.
 	* @param {number} amount The amount.
 	*/
 	#updateRotation(amount) {

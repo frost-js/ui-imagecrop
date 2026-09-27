@@ -189,7 +189,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			super.dispose();
 		}
 		/**
-		* Get the image bounds.
+		* Gets the image bounds.
 		* @returns {[number, number, number, number]} The left, top, right, and bottom crop coordinates.
 		*/
 		getBounds() {
@@ -206,7 +206,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			];
 		}
 		/**
-		* Get the image zoom level.
+		* Gets the image zoom level.
 		* @returns {number} The zoom level.
 		*/
 		getZoom() {
@@ -241,7 +241,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				const fail = (error) => {
 					cleanup();
 					if (reader.readyState === FileReader.LOADING) reader.abort();
-					image.removeAttribute("src");
+					_fr0st_query.default.removeAttribute(image, "src");
 					reject(error);
 				};
 				this.#cancelLoad = () => fail(new DOMException("Image loading was aborted.", "AbortError"));
@@ -371,7 +371,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			});
 		}
 		/**
-		* Rotate the image (in degrees).
+		* Rotates the image (in degrees).
 		* @param {number} [amount=90] The clockwise rotation in multiples of 90 degrees.
 		*/
 		rotate(amount = 90) {
@@ -386,7 +386,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
 		}
 		/**
-		* Set the image bounds.
+		* Sets the image bounds.
 		* @param {number} x1 The first image x offset.
 		* @param {number} y1 The first image y offset.
 		* @param {number} x2 The second image x offset.
@@ -414,7 +414,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
 		}
 		/**
-		* Set the image zoom level.
+		* Sets the image zoom level.
 		* @param {number} zoom The image zoom level.
 		*/
 		setZoom(zoom) {
@@ -428,7 +428,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
 		}
 		/**
-		* Clamp the image offset.
+		* Clamps the image offset.
 		*/
 		#clampOffset() {
 			if (!this.options.enforceBoundary) return;
@@ -438,7 +438,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#offsetY = _fr0st_query.default._clamp(this.#offsetY, minY, this.#canvasHeight - minY);
 		}
 		/**
-		* Clamp the image zoom level.
+		* Clamps the image zoom level.
 		*/
 		#clampZoom() {
 			this.#zoom = _fr0st_query.default._clamp(this.#zoom, this.options.minZoom, this.options.maxZoom);
@@ -447,7 +447,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#zoom = Math.max(minZoom, this.#zoom);
 		}
 		/**
-		* Attach events for the ImageCrop.
+		* Attaches events for the ImageCrop.
 		*/
 		#events() {
 			let lastPos;
@@ -475,7 +475,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			});
 		}
 		/**
-		* Attach resize events.
+		* Attaches resize events.
 		*/
 		#eventsResize() {
 			let lastPos;
@@ -500,8 +500,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.addEvent(this.#resize, "mousedown.ui.imagecrop", dragEvent);
 		}
 		/**
-		* Attach zoom events.
-		* @param {function(TouchEvent): void} upEvent The pinch end callback.
+		* Attaches zoom events.
+		* @param {(event: TouchEvent) => void} upEvent The pinch end callback.
 		*/
 		#eventsZoom(upEvent) {
 			let lastDist;
@@ -540,7 +540,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			});
 		}
 		/**
-		* Render the ImageCrop.
+		* Renders the ImageCrop.
 		*/
 		#render() {
 			this.#outerContainer = _fr0st_query.default.create("div", {
@@ -585,7 +585,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (!this.#img) throw new Error("Load an image before using ImageCrop.");
 		}
 		/**
-		* Resize the image preview.
+		* Resizes the image preview.
 		* @param {number} width The preview width.
 		* @param {number} height The preview height.
 		*/
@@ -610,7 +610,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			});
 		}
 		/**
-		* Update the preview.
+		* Updates the preview.
 		*/
 		#updatePreview() {
 			const x = (-this.#canvasWidth + this.#offsetX) * this.#zoom + this.#previewWidth / 2;
@@ -618,7 +618,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.setStyle(this.#canvas, { transform: `translate3d(${x}px, ${y}px, 0) scale(${this.#zoom})` });
 		}
 		/**
-		* Update the preview canvas.
+		* Updates the preview canvas.
 		*/
 		#updatePreviewCanvas() {
 			_fr0st_query.default.setAttribute(this.#canvas, {
@@ -634,7 +634,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#context.restore();
 		}
 		/**
-		* Adjust the rotation by an amount.
+		* Adjusts the rotation by an amount.
 		* @param {number} amount The amount.
 		*/
 		#updateRotation(amount) {

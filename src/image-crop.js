@@ -124,7 +124,7 @@ export default class ImageCrop extends BaseComponent {
     }
 
     /**
-     * Get the image bounds.
+     * Gets the image bounds.
      * @returns {[number, number, number, number]} The left, top, right, and bottom crop coordinates.
      */
     getBounds() {
@@ -139,7 +139,7 @@ export default class ImageCrop extends BaseComponent {
     }
 
     /**
-     * Get the image zoom level.
+     * Gets the image zoom level.
      * @returns {number} The zoom level.
      */
     getZoom() {
@@ -158,11 +158,15 @@ export default class ImageCrop extends BaseComponent {
         if (!this.node) {
             throw new Error('ImageCrop has been disposed.');
         }
+
         if (!(file instanceof Blob)) {
             throw new TypeError('The image must be a Blob.');
         }
-        if ([x, y].some((value) => value !== null && !Number.isFinite(value)) ||
-            (zoom !== null && (!Number.isFinite(zoom) || zoom <= 0))) {
+
+        if (
+            [x, y].some((value) => value !== null && !Number.isFinite(value)) ||
+            zoom !== null && (!Number.isFinite(zoom) || zoom <= 0)
+        ) {
             throw new RangeError('Image offsets must be finite and zoom must be positive.');
         }
 
@@ -171,6 +175,7 @@ export default class ImageCrop extends BaseComponent {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             const image = new Image();
+
             let url;
             let orientation;
 
@@ -180,20 +185,27 @@ export default class ImageCrop extends BaseComponent {
                 reader.onabort = null;
                 image.onload = null;
                 image.onerror = null;
+
                 if (url) {
                     URL.revokeObjectURL(url);
                 }
+
                 this.#cancelLoad = null;
             };
+
             const fail = (error) => {
                 cleanup();
+
                 if (reader.readyState === FileReader.LOADING) {
                     reader.abort();
                 }
-                image.removeAttribute('src');
+
+                $.removeAttribute(image, 'src');
                 reject(error);
             };
+
             this.#cancelLoad = () => fail(new DOMException('Image loading was aborted.', 'AbortError'));
+
             reader.onerror = () => fail(reader.error || new Error('Could not read the image.'));
             reader.onabort = this.#cancelLoad;
             image.onerror = () => fail(new Error('Could not decode the image.'));
@@ -208,8 +220,16 @@ export default class ImageCrop extends BaseComponent {
                 this.#img = image;
                 this.#rotation = 0;
                 this.#flipped = [2, 4, 5, 7].includes(orientation);
-                this.#previewWidth = Math.min(this.options.previewWidth, this.options.maxPreviewWidth ?? Infinity);
-                this.#previewHeight = Math.min(this.options.previewHeight, this.options.maxPreviewHeight ?? Infinity);
+
+                this.#previewWidth = Math.min(
+                    this.options.previewWidth,
+                    this.options.maxPreviewWidth ?? Infinity,
+                );
+                this.#previewHeight = Math.min(
+                    this.options.previewHeight,
+                    this.options.maxPreviewHeight ?? Infinity,
+                );
+
                 this.#canvasWidth = image.naturalWidth;
                 this.#canvasHeight = image.naturalHeight;
                 this.#offsetX = x ?? this.#canvasWidth / 2;
@@ -217,13 +237,20 @@ export default class ImageCrop extends BaseComponent {
 
                 const rotations = { 3: 180, 4: 180, 5: 270, 6: 90, 7: 90, 8: 270 };
                 this.#updateRotation(rotations[orientation] ?? 0);
-                this.#zoom = zoom ?? Math.min(this.#previewWidth / this.#canvasWidth, this.#previewHeight / this.#canvasHeight);
+
+                this.#zoom = zoom ?? Math.min(
+                    this.#previewWidth / this.#canvasWidth,
+                    this.#previewHeight / this.#canvasHeight,
+                );
+
                 this.#clampZoom();
                 this.#clampOffset();
+
                 $.setStyle(this.#outerContainer, {
                     width: `${this.#previewWidth}px`,
                     height: `${this.#previewHeight}px`,
                 });
+
                 this.#updatePreviewCanvas();
                 this.#updatePreview();
 
@@ -236,9 +263,11 @@ export default class ImageCrop extends BaseComponent {
                 try {
                     // Normalize metadata before browser decoding to avoid applying EXIF twice.
                     orientation = getOrientation(reader.result, true);
+
                     if (!this.options.exifOrientation) {
                         orientation = 1;
                     }
+
                     url = URL.createObjectURL(new Blob([reader.result], { type: file.type }));
                     image.src = url;
                 } catch (error) {
@@ -262,20 +291,36 @@ export default class ImageCrop extends BaseComponent {
     async result(options = {}) {
         this.#requireImage();
 
-        const { type = 'base64', format = 'png', size = 'viewport', quality = 1, circle = false, background = null } = options;
+        const {
+            type = 'base64',
+            format = 'png',
+            size = 'viewport',
+            quality = 1,
+            circle = false,
+            background = null,
+        } = options;
 
         if (!['base64', 'blob', 'canvas'].includes(type)) {
             throw new TypeError('Result type must be base64, blob, or canvas.');
         }
+
         if (!Number.isFinite(quality) || quality < 0 || quality > 1) {
             throw new RangeError('Quality must be between zero and one.');
         }
+
         if (size !== 'viewport' && size !== 'original') {
-            if (!$._isObject(size) || (size.width === undefined && size.height === undefined)) {
+            if (
+                !$._isObject(size) ||
+                size.width === undefined && size.height === undefined
+            ) {
                 throw new TypeError('Size must be viewport, original, or image dimensions.');
             }
+
             for (const value of [size.width, size.height]) {
-                if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
+                if (
+                    value !== undefined &&
+                    (!Number.isFinite(value) || value <= 0)
+                ) {
                     throw new RangeError('Output dimensions must be positive finite numbers.');
                 }
             }
@@ -286,11 +331,13 @@ export default class ImageCrop extends BaseComponent {
 
         let width = this.#previewWidth;
         let height = this.#previewHeight;
+
         if (size === 'original') {
             width /= this.#zoom;
             height /= this.#zoom;
         } else if ($._isObject(size)) {
             const ratio = width / height;
+
             width = size.width ?? size.height * ratio;
             height = size.height ?? size.width / ratio;
         }
@@ -298,14 +345,17 @@ export default class ImageCrop extends BaseComponent {
         const ratio = width / height;
         const maxWidth = this.options.maxWidth ?? Infinity;
         const maxHeight = this.options.maxHeight ?? Infinity;
+
         width = Math.min(width, maxWidth, maxHeight * ratio);
         height = Math.min(height, maxHeight, maxWidth / ratio);
 
         width = Math.max(1, Math.floor(width));
         height = Math.max(1, Math.floor(height));
+
         $.setAttribute(canvas, { width, height });
 
         const [x1, y1, x2, y2] = this.getBounds();
+
         context.drawImage(this.#canvas, x1, y1, x2 - x1, y2 - y1, 0, 0, width, height);
 
         if (circle || this.options.circle) {
@@ -328,9 +378,11 @@ export default class ImageCrop extends BaseComponent {
         if (type === 'canvas') {
             return canvas;
         }
+
         if (type === 'base64') {
             return canvas.toDataURL(`image/${format}`, quality);
         }
+
         return new Promise((resolve, reject) => {
             canvas.toBlob((blob) => {
                 if (blob) {
@@ -343,7 +395,7 @@ export default class ImageCrop extends BaseComponent {
     }
 
     /**
-     * Rotate the image (in degrees).
+     * Rotates the image (in degrees).
      * @param {number} [amount=90] The clockwise rotation in multiples of 90 degrees.
      */
     rotate(amount = 90) {
@@ -367,7 +419,7 @@ export default class ImageCrop extends BaseComponent {
     }
 
     /**
-     * Set the image bounds.
+     * Sets the image bounds.
      * @param {number} x1 The first image x offset.
      * @param {number} y1 The first image y offset.
      * @param {number} x2 The second image x offset.
@@ -378,14 +430,22 @@ export default class ImageCrop extends BaseComponent {
 
         const width = x2 - x1;
         const height = y2 - y1;
-        if (![x1, y1, x2, y2, width, height].every(Number.isFinite) || width <= 0 || height <= 0) {
+
+        if (
+            ![x1, y1, x2, y2, width, height].every(Number.isFinite) ||
+            width <= 0 ||
+            height <= 0
+        ) {
             throw new RangeError('Bounds must be finite and have a positive width and height.');
         }
 
         if (this.options.resize) {
             this.#resizePreview(width * this.#zoom, height * this.#zoom);
         } else if (this.options.zoom) {
-            this.#zoom = Math.max(this.#previewWidth / width, this.#previewHeight / height);
+            this.#zoom = Math.max(
+                this.#previewWidth / width,
+                this.#previewHeight / height,
+            );
         }
 
         this.#offsetX = this.#canvasWidth - (x1 + (width / 2));
@@ -399,7 +459,7 @@ export default class ImageCrop extends BaseComponent {
     }
 
     /**
-     * Set the image zoom level.
+     * Sets the image zoom level.
      * @param {number} zoom The image zoom level.
      */
     setZoom(zoom) {
@@ -423,7 +483,7 @@ export default class ImageCrop extends BaseComponent {
     }
 
     /**
-     * Clamp the image offset.
+     * Clamps the image offset.
      */
     #clampOffset() {
         if (!this.options.enforceBoundary) {
@@ -438,7 +498,7 @@ export default class ImageCrop extends BaseComponent {
     }
 
     /**
-     * Clamp the image zoom level.
+     * Clamps the image zoom level.
      */
     #clampZoom() {
         this.#zoom = $._clamp(this.#zoom, this.options.minZoom, this.options.maxZoom);
@@ -447,12 +507,16 @@ export default class ImageCrop extends BaseComponent {
             return;
         }
 
-        const minZoom = Math.max(this.#previewWidth / this.#canvasWidth, this.#previewHeight / this.#canvasHeight);
+        const minZoom = Math.max(
+            this.#previewWidth / this.#canvasWidth,
+            this.#previewHeight / this.#canvasHeight,
+        );
+
         this.#zoom = Math.max(minZoom, this.#zoom);
     }
 
     /**
-     * Attach events for the ImageCrop.
+     * Attaches events for the ImageCrop.
      */
     #events() {
         let lastPos;
@@ -473,8 +537,9 @@ export default class ImageCrop extends BaseComponent {
             }
 
             const newPos = getPosition(e);
-            this.#offsetX += ((newPos.x - lastPos.x) / this.#zoom);
-            this.#offsetY += ((newPos.y - lastPos.y) / this.#zoom);
+
+            this.#offsetX += (newPos.x - lastPos.x) / this.#zoom;
+            this.#offsetY += (newPos.y - lastPos.y) / this.#zoom;
             lastPos = newPos;
 
             this.#clampOffset();
@@ -502,7 +567,7 @@ export default class ImageCrop extends BaseComponent {
     }
 
     /**
-     * Attach resize events.
+     * Attaches resize events.
      */
     #eventsResize() {
         let lastPos;
@@ -527,6 +592,7 @@ export default class ImageCrop extends BaseComponent {
             const newPos = getPosition(e);
             const width = this.#previewWidth + newPos.x - lastPos.x;
             const height = this.#previewHeight + newPos.y - lastPos.y;
+
             lastPos = newPos;
 
             this.#resizePreview(width, height);
@@ -541,8 +607,8 @@ export default class ImageCrop extends BaseComponent {
     }
 
     /**
-     * Attach zoom events.
-     * @param {function(TouchEvent): void} upEvent The pinch end callback.
+     * Attaches zoom events.
+     * @param {(event: TouchEvent) => void} upEvent The pinch end callback.
      */
     #eventsZoom(upEvent) {
         let lastDist;
@@ -550,6 +616,7 @@ export default class ImageCrop extends BaseComponent {
 
         const getTouchDistance = (e) => {
             const touches = getTouchPositions(e);
+
             return $._dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
         };
 
@@ -569,6 +636,7 @@ export default class ImageCrop extends BaseComponent {
 
             const newDist = getTouchDistance(e);
             const diff = newDist - lastDist;
+
             lastDist = newDist;
 
             this.#zoom += diff / $._dist(0, 0, this.#previewWidth, this.#previewHeight);
@@ -606,7 +674,7 @@ export default class ImageCrop extends BaseComponent {
     }
 
     /**
-     * Render the ImageCrop.
+     * Renders the ImageCrop.
      */
     #render() {
         this.#outerContainer = $.create('div', {
@@ -639,6 +707,7 @@ export default class ImageCrop extends BaseComponent {
                     zIndex: 1,
                 },
             });
+
             $.append(this.#outerContainer, this.#resize);
         }
 
@@ -664,13 +733,14 @@ export default class ImageCrop extends BaseComponent {
         if (!this.node) {
             throw new Error('ImageCrop has been disposed.');
         }
+
         if (!this.#img) {
             throw new Error('Load an image before using ImageCrop.');
         }
     }
 
     /**
-     * Resize the image preview.
+     * Resizes the image preview.
      * @param {number} width The preview width.
      * @param {number} height The preview height.
      */
@@ -694,6 +764,7 @@ export default class ImageCrop extends BaseComponent {
         } else {
             this.#offsetX -= (width - this.#previewWidth) / this.#zoom / 2;
             this.#offsetY -= (height - this.#previewHeight) / this.#zoom / 2;
+
             this.#previewWidth = width;
             this.#previewHeight = height;
         }
@@ -705,18 +776,19 @@ export default class ImageCrop extends BaseComponent {
     }
 
     /**
-     * Update the preview.
+     * Updates the preview.
      */
     #updatePreview() {
         const x = ((-this.#canvasWidth + this.#offsetX) * this.#zoom) + (this.#previewWidth / 2);
         const y = ((-this.#canvasHeight + this.#offsetY) * this.#zoom) + (this.#previewHeight / 2);
+
         $.setStyle(this.#canvas, {
             transform: `translate3d(${x}px, ${y}px, 0) scale(${this.#zoom})`,
         });
     }
 
     /**
-     * Update the preview canvas.
+     * Updates the preview canvas.
      */
     #updatePreviewCanvas() {
         $.setAttribute(this.#canvas, {
@@ -734,22 +806,31 @@ export default class ImageCrop extends BaseComponent {
             this.#context.scale(-1, 1);
         }
 
-        this.#context.drawImage(this.#img, -this.#img.width / 2, -this.#img.height / 2, this.#img.width, this.#img.height);
+        this.#context.drawImage(
+            this.#img,
+            -this.#img.width / 2,
+            -this.#img.height / 2,
+            this.#img.width,
+            this.#img.height,
+        );
         this.#context.restore();
     }
 
     /**
-     * Adjust the rotation by an amount.
+     * Adjusts the rotation by an amount.
      * @param {number} amount The amount.
      */
     #updateRotation(amount) {
         const turns = ((amount % 360) + 360) % 360 / 90;
+
         for (let turn = 0; turn < turns; turn++) {
             const offsetX = this.#offsetX;
+
             this.#offsetX = this.#canvasHeight - this.#offsetY;
             this.#offsetY = offsetX;
             [this.#canvasWidth, this.#canvasHeight] = [this.#canvasHeight, this.#canvasWidth];
         }
+
         this.#rotation = ((this.#rotation + amount) % 360 + 360) % 360;
     }
 
@@ -762,11 +843,16 @@ export default class ImageCrop extends BaseComponent {
                 throw new RangeError(`${key} must be a positive finite number.`);
             }
         }
+
         for (const key of ['maxPreviewWidth', 'maxPreviewHeight', 'maxWidth', 'maxHeight']) {
-            if (this.options[key] !== null && (!Number.isFinite(this.options[key]) || this.options[key] <= 0)) {
+            if (
+                this.options[key] !== null &&
+                (!Number.isFinite(this.options[key]) || this.options[key] <= 0)
+            ) {
                 throw new RangeError(`${key} must be null or a positive finite number.`);
             }
         }
+
         if (this.options.minZoom > this.options.maxZoom) {
             throw new RangeError('minZoom must not exceed maxZoom.');
         }
