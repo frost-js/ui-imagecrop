@@ -77,6 +77,15 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		}
 		return 1;
 	}
+	/**
+	* Gets the distance between the first two active touches.
+	* @param {TouchEvent} e The touch event with at least two active touches.
+	* @returns {number} The distance in pixels.
+	*/
+	function getTouchDistance(e) {
+		const touches = (0, _fr0st_ui.getTouchPositions)(e);
+		return _fr0st_query.default._dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
+	}
 
 //#endregion
 //#region src/image-crop.js
@@ -167,7 +176,20 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		constructor(node, options) {
 			super(node, options);
 			try {
-				this.#validateOptions();
+				for (const key of [
+					"previewWidth",
+					"previewHeight",
+					"minZoom",
+					"maxZoom",
+					"zoomAmount"
+				]) if (!Number.isFinite(this.options[key]) || this.options[key] <= 0) throw new RangeError(`${key} must be a positive finite number.`);
+				for (const key of [
+					"maxPreviewWidth",
+					"maxPreviewHeight",
+					"maxWidth",
+					"maxHeight"
+				]) if (this.options[key] !== null && (!Number.isFinite(this.options[key]) || this.options[key] <= 0)) throw new RangeError(`${key} must be null or a positive finite number.`);
+				if (this.options.minZoom > this.options.maxZoom) throw new RangeError("minZoom must not exceed maxZoom.");
 				this.#render();
 				this.#events();
 			} catch (error) {
@@ -506,10 +528,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#eventsZoom(upEvent) {
 			let lastDist;
 			let image;
-			const getTouchDistance = (e) => {
-				const touches = (0, _fr0st_ui.getTouchPositions)(e);
-				return _fr0st_query.default._dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
-			};
 			const downEvent = (e) => {
 				if (!this.node || !this.#img || this.#cancelLoad) return false;
 				image = this.#img;
@@ -646,25 +664,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				[this.#canvasWidth, this.#canvasHeight] = [this.#canvasHeight, this.#canvasWidth];
 			}
 			this.#rotation = ((this.#rotation + amount) % 360 + 360) % 360;
-		}
-		/**
-		* Validates dimensions and zoom limits before rendering.
-		*/
-		#validateOptions() {
-			for (const key of [
-				"previewWidth",
-				"previewHeight",
-				"minZoom",
-				"maxZoom",
-				"zoomAmount"
-			]) if (!Number.isFinite(this.options[key]) || this.options[key] <= 0) throw new RangeError(`${key} must be a positive finite number.`);
-			for (const key of [
-				"maxPreviewWidth",
-				"maxPreviewHeight",
-				"maxWidth",
-				"maxHeight"
-			]) if (this.options[key] !== null && (!Number.isFinite(this.options[key]) || this.options[key] <= 0)) throw new RangeError(`${key} must be null or a positive finite number.`);
-			if (this.options.minZoom > this.options.maxZoom) throw new RangeError("minZoom must not exceed maxZoom.");
 		}
 	};
 

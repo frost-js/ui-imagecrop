@@ -1,6 +1,6 @@
 import $ from '@fr0st/query';
-import { BaseComponent, getPosition, getTouchPositions } from '@fr0st/ui';
-import { getOrientation } from './helpers.js';
+import { BaseComponent, getPosition } from '@fr0st/ui';
+import { getOrientation, getTouchDistance } from './helpers.js';
 
 /**
  * @typedef {object} ImageCropOptions
@@ -95,7 +95,25 @@ export default class ImageCrop extends BaseComponent {
         super(node, options);
 
         try {
-            this.#validateOptions();
+            for (const key of ['previewWidth', 'previewHeight', 'minZoom', 'maxZoom', 'zoomAmount']) {
+                if (!Number.isFinite(this.options[key]) || this.options[key] <= 0) {
+                    throw new RangeError(`${key} must be a positive finite number.`);
+                }
+            }
+
+            for (const key of ['maxPreviewWidth', 'maxPreviewHeight', 'maxWidth', 'maxHeight']) {
+                if (
+                    this.options[key] !== null &&
+                    (!Number.isFinite(this.options[key]) || this.options[key] <= 0)
+                ) {
+                    throw new RangeError(`${key} must be null or a positive finite number.`);
+                }
+            }
+
+            if (this.options.minZoom > this.options.maxZoom) {
+                throw new RangeError('minZoom must not exceed maxZoom.');
+            }
+
             this.#render();
             this.#events();
         } catch (error) {
@@ -614,12 +632,6 @@ export default class ImageCrop extends BaseComponent {
         let lastDist;
         let image;
 
-        const getTouchDistance = (e) => {
-            const touches = getTouchPositions(e);
-
-            return $._dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
-        };
-
         const downEvent = (e) => {
             if (!this.node || !this.#img || this.#cancelLoad) {
                 return false;
@@ -832,29 +844,5 @@ export default class ImageCrop extends BaseComponent {
         }
 
         this.#rotation = ((this.#rotation + amount) % 360 + 360) % 360;
-    }
-
-    /**
-     * Validates dimensions and zoom limits before rendering.
-     */
-    #validateOptions() {
-        for (const key of ['previewWidth', 'previewHeight', 'minZoom', 'maxZoom', 'zoomAmount']) {
-            if (!Number.isFinite(this.options[key]) || this.options[key] <= 0) {
-                throw new RangeError(`${key} must be a positive finite number.`);
-            }
-        }
-
-        for (const key of ['maxPreviewWidth', 'maxPreviewHeight', 'maxWidth', 'maxHeight']) {
-            if (
-                this.options[key] !== null &&
-                (!Number.isFinite(this.options[key]) || this.options[key] <= 0)
-            ) {
-                throw new RangeError(`${key} must be null or a positive finite number.`);
-            }
-        }
-
-        if (this.options.minZoom > this.options.maxZoom) {
-            throw new RangeError('minZoom must not exceed maxZoom.');
-        }
     }
 }

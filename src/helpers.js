@@ -1,3 +1,6 @@
+import $ from '@fr0st/query';
+import { getTouchPositions } from '@fr0st/ui';
+
 /**
  * Reads JPEG EXIF orientation, optionally resetting its tag before decoding.
  * @param {ArrayBuffer} data The image data. Resetting changes this buffer only.
@@ -76,4 +79,15 @@ export function getOrientation(data, reset = false) {
     }
 
     return 1;
+};
+
+/**
+ * Gets the distance between the first two active touches.
+ * @param {TouchEvent} e The touch event with at least two active touches.
+ * @returns {number} The distance in pixels.
+ */
+export function getTouchDistance(e) {
+    const touches = getTouchPositions(e);
+
+    return $._dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
 };
