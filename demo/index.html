@@ -53,7 +53,7 @@
             </header>
             <div class="row g-4">
                 <div class="col-lg-7">
-                    <div class="card h-100">
+                    <div class="card demo-preview sticky-lg-top">
                         <div class="card-body p-4">
                             <label for="image-file">Choose an image</label>
                             <input class="input-outline mt-2" id="image-file" type="file" accept="image/*" disabled>
@@ -81,8 +81,53 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-5">
-                    <div class="card card-body h-100 p-4">
+                <div class="col-lg-5 d-flex flex-column gap-4">
+                    <div class="card card-body p-4" id="methods-events">
+                        <h3 class="h5">Control the selected region</h3>
+                        <p class="small text-body-secondary">Bounds use source pixels after orientation and rotation. Limits may adjust the requested crop.</p>
+                        <form id="bounds-form">
+                            <fieldset data-image-controls disabled>
+                                <legend class="h5">Set bounds</legend>
+                                <div class="row g-3 mb-3">
+                                    <div class="col-6">
+                                        <label for="bounds-x1">Left</label>
+                                        <input class="input-outline" id="bounds-x1" type="number" step="any" value="0" required>
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="bounds-y1">Top</label>
+                                        <input class="input-outline" id="bounds-y1" type="number" step="any" value="0" required>
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="bounds-x2">Right</label>
+                                        <input class="input-outline" id="bounds-x2" type="number" step="any" value="600" required>
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="bounds-y2">Bottom</label>
+                                        <input class="input-outline" id="bounds-y2" type="number" step="any" value="600" required>
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button class="btn btn-primary ripple" type="submit">Set bounds</button>
+                                    <button class="btn btn-outline-primary ripple" id="get-bounds" type="button">Get bounds</button>
+                                </div>
+                                <output class="small d-block mt-2" id="bounds-output" aria-live="polite"></output>
+                            </fieldset>
+                        </form>
+                        <form class="mt-4" id="zoom-form">
+                            <fieldset data-image-controls disabled>
+                                <legend class="h5">Set zoom</legend>
+                                <label for="zoom-value">Scale</label>
+                                <input class="input-outline" id="zoom-value" type="number" min="0.01" max="10" step="any" value="0.5" required>
+                                <div class="d-flex flex-wrap gap-2 mt-3">
+                                    <button class="btn btn-primary ripple" id="set-zoom" type="submit">Set zoom</button>
+                                    <button class="btn btn-outline-primary ripple" id="get-zoom" type="button">Get zoom</button>
+                                </div>
+                                <output class="small d-block mt-2" id="zoom-output" aria-live="polite"></output>
+                            </fieldset>
+                        </form>
+                        <output class="small d-block mt-3" id="method-output" aria-live="polite">Load an image to use the methods.</output>
+                    </div>
+                    <div class="card card-body p-4">
                         <h3 class="h5">Component options</h3>
                         <p class="text-body-secondary">Changing an option reloads the current image and resets the crop.</p>
                         <fieldset id="crop-options" data-image-controls disabled>
@@ -112,68 +157,13 @@
                                 <label class="form-check-label" for="option-exifOrientation">Apply EXIF orientation</label>
                             </div>
                         </fieldset>
-                        <p class="form-text">When resizing is enabled, drag the blue bottom-right handle. Use the bounds fields below to resize with a keyboard. The demo caps the viewport at 480 × 400 pixels.</p>
+                        <p class="form-text">When resizing is enabled, drag the blue bottom-right handle. Use the bounds fields above to resize with a keyboard. The demo caps the viewport at 480 × 400 pixels.</p>
                         <div class="d-flex flex-wrap gap-2 mt-auto">
                             <button class="btn btn-outline-primary ripple" id="crop-init" type="button" disabled>Initialize</button>
                             <button class="btn btn-outline-danger ripple" id="crop-dispose" type="button" disabled>Dispose</button>
                         </div>
                     </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="mb-5" id="methods-events">
-            <header class="border-bottom pb-3 mb-4">
-                <span class="text-primary fw-bold">Methods and events</span>
-                <h2 class="h3 mb-1">Control the selected region</h2>
-                <p class="text-body-secondary mb-0">Bounds use source pixels after orientation and rotation. Limits may adjust the requested crop.</p>
-            </header>
-            <div class="row g-4">
-                <div class="col-lg-7">
-                    <div class="card card-body p-4 h-100">
-                        <form id="bounds-form">
-                            <fieldset data-image-controls disabled>
-                                <legend class="h5">Set bounds</legend>
-                                <div class="row g-3 mb-3">
-                                    <div class="col-6">
-                                        <label for="bounds-x1">Left</label>
-                                        <input class="input-outline" id="bounds-x1" type="number" step="any" value="0" required>
-                                    </div>
-                                    <div class="col-6">
-                                        <label for="bounds-y1">Top</label>
-                                        <input class="input-outline" id="bounds-y1" type="number" step="any" value="0" required>
-                                    </div>
-                                    <div class="col-6">
-                                        <label for="bounds-x2">Right</label>
-                                        <input class="input-outline" id="bounds-x2" type="number" step="any" value="600" required>
-                                    </div>
-                                    <div class="col-6">
-                                        <label for="bounds-y2">Bottom</label>
-                                        <input class="input-outline" id="bounds-y2" type="number" step="any" value="600" required>
-                                    </div>
-                                </div>
-                                <div class="d-flex flex-wrap gap-2">
-                                    <button class="btn btn-primary ripple" type="submit">Set bounds</button>
-                                    <button class="btn btn-outline-primary ripple" id="get-bounds" type="button">Get bounds</button>
-                                </div>
-                            </fieldset>
-                        </form>
-                        <form class="mt-4" id="zoom-form">
-                            <fieldset data-image-controls disabled>
-                                <legend class="h5">Set zoom</legend>
-                                <label for="zoom-value">Scale</label>
-                                <input class="input-outline" id="zoom-value" type="number" min="0.01" max="10" step="any" value="0.5" required>
-                                <div class="d-flex flex-wrap gap-2 mt-3">
-                                    <button class="btn btn-primary ripple" id="set-zoom" type="submit">Set zoom</button>
-                                    <button class="btn btn-outline-primary ripple" id="get-zoom" type="button">Get zoom</button>
-                                </div>
-                            </fieldset>
-                        </form>
-                        <output class="small d-block mt-3" id="method-output" aria-live="polite">Load an image to use the methods.</output>
-                    </div>
-                </div>
-                <div class="col-lg-5">
-                    <div class="card card-body p-4 h-100">
+                    <div class="card card-body p-4">
                         <h3 class="h5">Update events</h3>
                         <p class="small text-body-secondary">The latest 20 <code>update.ui.imagecrop</code> events. Loading and exporting do not emit updates.</p>
                         <div class="demo-event-log overflow-auto border rounded-3 p-3" id="event-log" aria-label="Recent crop updates"></div>

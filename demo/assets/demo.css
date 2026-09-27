@@ -1,3 +1,9 @@
+@media (min-width: 992px) {
+    .demo-preview {
+        top: 5rem;
+    }
+}
+
 .demo-crop-stage {
     overflow: auto;
 }
@@ -17,6 +23,7 @@
     height: auto;
 }
 
-section[id] {
+section[id],
+#methods-events {
     scroll-margin-top: 6rem;
 }

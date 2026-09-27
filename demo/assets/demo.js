@@ -112,16 +112,17 @@ $.ready(() => {
 
     const loadSample = () => loadFile(fetch(globalThis.testImage).then((response) => response.blob()));
 
-    const run = (callback) => {
+    const run = (callback, output = '#method-output') => {
         if (!ready || loading) {
             return;
         }
 
         try {
-            callback();
-            $.setText('#method-output', describeGeometry());
+            const result = callback();
+
+            $.setText(output, result ?? describeGeometry());
         } catch (error) {
-            $.setText('#method-output', error.message);
+            $.setText(output, error.message);
         }
     };
 
@@ -209,13 +210,7 @@ $.ready(() => {
     });
 
     $.addEvent('#get-bounds', 'click', () => {
-        run(() => {
-            const keys = ['x1', 'y1', 'x2', 'y2'];
-
-            crop.getBounds().forEach((value, index) => {
-                $.setValue(`#bounds-${keys[index]}`, Number(value.toFixed(2)));
-            });
-        });
+        run(() => `Bounds: ${crop.getBounds().join(', ')}`, '#bounds-output');
     });
 
     $.addEvent('#zoom-form', 'submit', (event) => {
@@ -225,9 +220,7 @@ $.ready(() => {
     });
 
     $.addEvent('#get-zoom', 'click', () => {
-        run(() => {
-            $.setValue('#zoom-value', crop.getZoom());
-        });
+        run(() => `Zoom: ${crop.getZoom()}`, '#zoom-output');
     });
 
     $.addEvent('#result-options', 'change', updateControls);
