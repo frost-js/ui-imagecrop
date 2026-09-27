@@ -8,7 +8,7 @@ import { getOrientation } from './../helpers.js';
  * @param {number} [options.x] The initial x offset.
  * @param {number} [options.y] The initial y offset.
  * @param {number} [options.zoom] The initial zoom.
- * @return {Promise} A promise that resolves when the image is loaded.
+ * @returns {Promise} A promise that resolves when the image is loaded.
  */
 export function load(file, options = {}) {
     const { x = null, y = null, zoom = null } = options;

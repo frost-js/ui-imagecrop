@@ -39,7 +39,7 @@ export default class ImageCrop extends BaseComponent {
 
     /**
      * Get the image bounds.
-     * @return {Array} The image bounds.
+     * @returns {Array} The image bounds.
      */
     getBounds() {
         const width = this._previewWidth / this._zoom;
@@ -52,7 +52,7 @@ export default class ImageCrop extends BaseComponent {
 
     /**
      * Get the image zoom level.
-     * @return {number} The zoom level.
+     * @returns {number} The zoom level.
      */
     getZoom() {
         return this._zoom;

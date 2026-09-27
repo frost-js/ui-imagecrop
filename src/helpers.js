@@ -1,7 +1,7 @@
 /**
  * Get the EXIF orientation.
  * @param {ArrayBuffer} data The file data.
- * @return {number} The EXIF orientation.
+ * @returns {number} The EXIF orientation.
  */
 export function getOrientation(data) {
     const view = new DataView(data);

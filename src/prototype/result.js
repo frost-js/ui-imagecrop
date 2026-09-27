@@ -7,9 +7,9 @@ import $ from '@fr0st/query';
  * @param {string} [options.format=png] The image format to render.
  * @param {string|object} [options.size=viewport] The size to render the image.
  * @param {number} [options.quality=1] The image quality to render.
- * @param {Boolean} [circle] Whether to render the image as a circle.
- * @param {string} [background] The background color to render the image with.
- * @return {Promise} A promise that resolves with the rendered image.
+ * @param {boolean} [options.circle=false] Whether to render the image as a circle.
+ * @param {string} [options.background] The background color to render the image with.
+ * @returns {Promise} A promise that resolves with the rendered image.
  */
 export function result(options = {}) {
     const { type = 'base64', format = 'png', size = 'viewport', quality = 1, circle = false, background = null } = options;
@@ -78,10 +78,11 @@ export function result(options = {}) {
 
     return new Promise((resolve) => {
         switch (type) {
-            case 'base64':
+            case 'base64': {
                 const result = canvas.toDataURL(`image/${format}`, quality);
                 resolve(result);
                 break;
+            }
             case 'blob':
                 canvas.toBlob(resolve, `image/${format}`, quality);
                 break;
