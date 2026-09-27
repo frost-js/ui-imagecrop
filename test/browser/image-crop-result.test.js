@@ -228,21 +228,23 @@ test.describe('ImageCrop results', () => {
         });
     });
 
-    for (const { name, options, width, height } of [
+    for (const { name, options, width, height, size = 'original' } of [
         { name: 'maxWidth option', options: { maxWidth: 160 }, width: 160, height: 120 },
         { name: 'maxHeight option', options: { maxHeight: 90 }, width: 120, height: 90 },
         { name: 'combined output limits', options: { maxWidth: 160, maxHeight: 90 }, width: 120, height: 90 },
+        { name: 'maxWidth with fractional scaling', options: { maxWidth: 55 }, size: { width: 300, height: 200 }, width: 55, height: 36 },
+        { name: 'maxHeight with fractional scaling', options: { maxHeight: 55 }, size: { width: 200, height: 300 }, width: 36, height: 55 },
     ]) {
         test.describe(name, () => {
             test('limits the output without changing its aspect ratio', async ({ page }) => {
-                await page.evaluate(async (options) => {
+                await page.evaluate(async ({ options, size }) => {
                     $.getData('#crop', 'imagecrop').dispose();
                     const crop = UI.ImageCrop.init(document.querySelector('#crop'), { ...options, previewWidth: 320, previewHeight: 240 });
                     await crop.load(window.imageFile);
-                    const result = await crop.result({ type: 'canvas', size: 'original' });
+                    const result = await crop.result({ type: 'canvas', size });
                     result.id = 'result';
                     document.body.append(result);
-                }, options);
+                }, { options, size });
                 await expect(page.locator('#result')).toHaveAttribute('width', `${width}`);
                 await expect(page.locator('#result')).toHaveAttribute('height', `${height}`);
             });

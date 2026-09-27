@@ -235,13 +235,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					reader.onabort = null;
 					image.onload = null;
 					image.onerror = null;
-					if (reader.readyState === FileReader.LOADING) reader.abort();
 					if (url) URL.revokeObjectURL(url);
-					image.removeAttribute("src");
 					this.#cancelLoad = null;
 				};
 				const fail = (error) => {
 					cleanup();
+					if (reader.readyState === FileReader.LOADING) reader.abort();
+					image.removeAttribute("src");
 					reject(error);
 				};
 				this.#cancelLoad = () => fail(new DOMException("Image loading was aborted.", "AbortError"));
@@ -284,13 +284,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					});
 					this.#updatePreviewCanvas();
 					this.#updatePreview();
-					reader.onload = null;
-					reader.onerror = null;
-					reader.onabort = null;
-					image.onload = null;
-					image.onerror = null;
-					URL.revokeObjectURL(url);
-					this.#cancelLoad = null;
+					cleanup();
 					resolve();
 				};
 				reader.onload = () => {
@@ -336,29 +330,15 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				width /= this.#zoom;
 				height /= this.#zoom;
 			} else if (_fr0st_query.default._isObject(size)) {
-				if (size.width && size.height) {
-					width = size.width;
-					height = size.height;
-				} else {
-					const ratio = width / height;
-					if (size.width) {
-						width = size.width;
-						height = width / ratio;
-					} else if (size.height) {
-						height = size.height;
-						width = height * ratio;
-					}
-				}
+				const ratio = width / height;
+				width = size.width ?? size.height * ratio;
+				height = size.height ?? size.width / ratio;
 			}
 			const ratio = width / height;
-			if (this.options.maxWidth) {
-				width = Math.min(width, this.options.maxWidth);
-				height = width / ratio;
-			}
-			if (this.options.maxHeight) {
-				height = Math.min(height, this.options.maxHeight);
-				width = height * ratio;
-			}
+			const maxWidth = this.options.maxWidth ?? Infinity;
+			const maxHeight = this.options.maxHeight ?? Infinity;
+			width = Math.min(width, maxWidth, maxHeight * ratio);
+			height = Math.min(height, maxHeight, maxWidth / ratio);
 			width = Math.max(1, Math.floor(width));
 			height = Math.max(1, Math.floor(height));
 			_fr0st_query.default.setAttribute(canvas, {
@@ -452,8 +432,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#clampOffset() {
 			if (!this.options.enforceBoundary) return;
-			const minX = this.#previewWidth / (this.#canvasWidth * this.#zoom) * this.#canvasWidth / 2;
-			const minY = this.#previewHeight / (this.#canvasHeight * this.#zoom) * this.#canvasHeight / 2;
+			const minX = this.#previewWidth / this.#zoom / 2;
+			const minY = this.#previewHeight / this.#zoom / 2;
 			this.#offsetX = _fr0st_query.default._clamp(this.#offsetX, minX, this.#canvasWidth - minX);
 			this.#offsetY = _fr0st_query.default._clamp(this.#offsetY, minY, this.#canvasHeight - minY);
 		}

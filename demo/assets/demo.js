@@ -38,7 +38,6 @@ $.ready(() => {
     let loading = false;
     let exporting = false;
     let resultUrl;
-    let resultBlob;
 
     const updateControls = () => {
         document.querySelectorAll('[data-image-controls]').forEach((fieldset) => {
@@ -77,6 +76,7 @@ $.ready(() => {
         status.textContent = 'Loading image…';
         updateControls();
         try {
+            nextFile = await nextFile;
             if (recreate || !crop) {
                 crop?.dispose();
                 crop = null;
@@ -100,19 +100,7 @@ $.ready(() => {
         }
     };
 
-    const loadSample = async () => {
-        loading = true;
-        updateControls();
-        try {
-            const response = await fetch(globalThis.testImage);
-            await loadFile(await response.blob());
-        } catch (error) {
-            status.textContent = error.message;
-        } finally {
-            loading = false;
-            updateControls();
-        }
-    };
+    const loadSample = () => loadFile(fetch(globalThis.testImage).then((response) => response.blob()));
 
     const run = (callback) => {
         if (!ready || loading) {
@@ -222,11 +210,10 @@ $.ready(() => {
                 throw new Error('Could not encode the download.');
             }
             let preview = result;
-            let nextUrl;
+            const nextUrl = URL.createObjectURL(blob);
             if (type !== 'canvas') {
                 preview = new Image();
                 preview.alt = 'Cropped image result';
-                nextUrl = URL.createObjectURL(blob);
                 preview.src = nextUrl;
                 try {
                     await preview.decode();
@@ -243,8 +230,7 @@ $.ready(() => {
                 URL.revokeObjectURL(resultUrl);
             }
             resultUrl = nextUrl;
-            resultBlob = blob;
-            download.href = '#results';
+            download.href = resultUrl;
             download.download = `crop.${blob.type === 'image/jpeg' ? 'jpg' : 'png'}`;
             download.hidden = false;
             resultStatus.textContent = `${type} · ${preview.naturalWidth || preview.width} × ${preview.naturalHeight || preview.height} pixels · ${blob.type} · ${blob.size.toLocaleString()} bytes${type === 'canvas' ? ' (PNG download)' : ''}`;
@@ -254,12 +240,6 @@ $.ready(() => {
             exporting = false;
             updateControls();
         }
-    });
-    download.addEventListener('click', () => {
-        const url = URL.createObjectURL(resultBlob);
-        download.href = url;
-        // Give the browser time to start the download before releasing its URL.
-        setTimeout(() => URL.revokeObjectURL(url), 30000);
     });
     window.addEventListener('pagehide', () => {
         if (resultUrl) {
