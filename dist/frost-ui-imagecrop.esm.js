@@ -89,8 +89,8 @@ var ImageCrop = class extends BaseComponent {
 		circle: "rounded-circle",
 		container: "position-relative w-100 h-100 overflow-hidden border",
 		outerContainer: "position-relative",
-		preview: "position-absolute top-0 left-0",
-		resize: "position-absolute top-100 start-100"
+		preview: "position-absolute top-0",
+		resize: "position-absolute top-100 bg-primary"
 	};
 	/** @type {ImageCropOptions} */
 	static defaults = {
@@ -527,7 +527,10 @@ var ImageCrop = class extends BaseComponent {
 	* Render the ImageCrop.
 	*/
 	#render() {
-		this.#outerContainer = $.create("div", { class: this.constructor.classes.outerContainer });
+		this.#outerContainer = $.create("div", {
+			class: this.constructor.classes.outerContainer,
+			style: { marginRight: "auto" }
+		});
 		this.#container = $.create("div", {
 			class: this.constructor.classes.container,
 			style: { boxSizing: "content-box" }
@@ -539,7 +542,7 @@ var ImageCrop = class extends BaseComponent {
 				style: {
 					width: "5px",
 					height: "5px",
-					backgroundColor: "black",
+					left: "100%",
 					cursor: "nwse-resize",
 					zIndex: 1
 				}

@@ -47,8 +47,8 @@ export default class ImageCrop extends BaseComponent {
         circle: 'rounded-circle',
         container: 'position-relative w-100 h-100 overflow-hidden border',
         outerContainer: 'position-relative',
-        preview: 'position-absolute top-0 left-0',
-        resize: 'position-absolute top-100 start-100',
+        preview: 'position-absolute top-0',
+        resize: 'position-absolute top-100 bg-primary',
     };
     /** @type {ImageCropOptions} */
     static defaults = {
@@ -627,6 +627,10 @@ export default class ImageCrop extends BaseComponent {
     #render() {
         this.#outerContainer = $.create('div', {
             class: this.constructor.classes.outerContainer,
+            style: {
+                // Keep the physical origin fixed when resizing in RTL layouts.
+                marginRight: 'auto',
+            },
         });
 
         this.#container = $.create('div', {
@@ -646,7 +650,7 @@ export default class ImageCrop extends BaseComponent {
                 style: {
                     width: '5px',
                     height: '5px',
-                    backgroundColor: 'black',
+                    left: '100%',
                     cursor: 'nwse-resize',
                     zIndex: 1,
                 },

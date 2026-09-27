@@ -1,0 +1,23 @@
+.demo-crop-stage {
+    overflow: auto;
+}
+
+.demo-crop-stage > div,
+.demo-exif-crop {
+    width: fit-content;
+}
+
+.demo-event-log {
+    height: 18rem;
+}
+
+.demo-result > img,
+.demo-result > canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+section[id] {
+    scroll-margin-top: 6rem;
+}

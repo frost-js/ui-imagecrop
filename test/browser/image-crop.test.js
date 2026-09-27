@@ -838,24 +838,30 @@ test.describe('ImageCrop', () => {
             await expect(page.locator('#crop > .position-relative')).toHaveCSS('height', '300px');
         });
 
-        test('preserves the image position while resizing without boundary enforcement', async ({ page }) => {
-            await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { resize: true, enforceBoundary: false });
-                await crop.load(window.imageFile);
+        for (const direction of ['ltr', 'rtl']) {
+            test(`preserves the image position while resizing without boundary enforcement (${direction})`, async ({ page }) => {
+                await page.evaluate(async (direction) => {
+                    document.documentElement.dir = direction;
+                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), { resize: true, enforceBoundary: false });
+                    await crop.load(window.imageFile);
+                }, direction);
+                const canvas = page.locator('#crop canvas');
+                const before = await canvas.boundingBox();
+                const handle = await page.locator('#crop .top-100').boundingBox();
+                const viewport = await page.locator('#crop > .position-relative').boundingBox();
+                expect(handle.x).toBeCloseTo(viewport.x + viewport.width);
+                expect(handle.y).toBeCloseTo(viewport.y + viewport.height);
+                await page.mouse.move(handle.x + 2, handle.y + 2);
+                await page.mouse.down();
+                await page.mouse.move(handle.x + 42, handle.y + 32, { steps: 5 });
+                await page.mouse.up();
+                await expect(page.locator('#crop > .position-relative')).toHaveCSS('width', '340px');
+                await expect(page.locator('#crop > .position-relative')).toHaveCSS('height', '330px');
+                const after = await canvas.boundingBox();
+                expect(after.x).toBeCloseTo(before.x);
+                expect(after.y).toBeCloseTo(before.y);
             });
-            const canvas = page.locator('#crop canvas');
-            const before = await canvas.boundingBox();
-            const handle = await page.locator('#crop .top-100').boundingBox();
-            await page.mouse.move(handle.x + 2, handle.y + 2);
-            await page.mouse.down();
-            await page.mouse.move(handle.x + 42, handle.y + 32, { steps: 5 });
-            await page.mouse.up();
-            await expect(page.locator('#crop > .position-relative')).toHaveCSS('width', '340px');
-            await expect(page.locator('#crop > .position-relative')).toHaveCSS('height', '330px');
-            const after = await canvas.boundingBox();
-            expect(after.x).toBeCloseTo(before.x);
-            expect(after.y).toBeCloseTo(before.y);
-        });
+        }
 
         test('keeps dimensions positive when dragging past the minimum', async ({ page }) => {
             await page.evaluate(async () => {

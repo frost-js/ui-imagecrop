@@ -1,37 +1,303 @@
-# FrostUI ImageCrop
+# Frost UI ImageCrop
 
-**FrostUI ImageCrop** is a free, open-source Image Crop component for *JavaScript*.
+[![CI](https://github.com/elusivecodes/FrostUI-ImageCrop/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/elusivecodes/FrostUI-ImageCrop/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/elusivecodes/FrostUI-ImageCrop/branch/main/graph/badge.svg)](https://codecov.io/gh/elusivecodes/FrostUI-ImageCrop)
+[![npm version](https://img.shields.io/npm/v/%40fr0st%2Fui-imagecrop?style=flat-square)](https://www.npmjs.com/package/@fr0st/ui-imagecrop)
+[![npm downloads](https://img.shields.io/npm/dm/%40fr0st%2Fui-imagecrop?style=flat-square)](https://www.npmjs.com/package/@fr0st/ui-imagecrop)
+[![JS gzip size](https://img.badgesize.io/elusivecodes/FrostUI-ImageCrop/main/dist/frost-ui-imagecrop.min.js?compression=gzip&label=JS%20gzip%20size&style=flat-square)](https://github.com/elusivecodes/FrostUI-ImageCrop/blob/main/dist/frost-ui-imagecrop.min.js)
+[![license](https://img.shields.io/github/license/elusivecodes/FrostUI-ImageCrop?style=flat-square)](./LICENSE)
 
-It is built on top of the [FrostUI](https://github.com/elusivecodes/FrostUI) library.
+Image cropping for Frost UI with panning, zoom, quarter-turn rotation, resizing, EXIF orientation, and canvas or encoded image output.
 
+## Highlights
 
-## Table Of Contents
-- [Installation](#installation)
-- [Usage](#usage)
-
-
+- Mouse and single-touch panning, wheel and pinch zoom
+- Optional image boundaries, circular masks, and resizable viewports
+- All eight JPEG EXIF orientations, including reflections
+- PNG/JPEG output as a data URL, Blob, or canvas
+- Original, viewport, and custom output dimensions with size limits
+- Async loading with cancellation and recovery from failed replacements
+- Native `ImageCrop` class and `imagecrop` fQuery plugin
+- Prebuilt ESM and UMD bundles with source maps
+- Frost UI v4 utilities with no component stylesheet or Sass
+- JSDoc-powered IntelliSense
 
 ## Installation
 
-**Dependencies**
+### Browser projects / bundlers
 
-- [fQuery](https://github.com/elusivecodes/fQuery)
-- [FrostUI](https://github.com/elusivecodes/FrostUI)
+Install ImageCrop with its Frost UI v4 and fQuery v5 peers:
 
-**CSS**
-
-```html
-<link rel="stylesheet" href="/path/to/frost-ui.min.css" />
+```bash
+npm i @fr0st/ui-imagecrop @fr0st/ui @fr0st/query
 ```
 
-**JS**
+```js
+import '@fr0st/ui/dist/frost-ui.min.css';
+import ImageCrop from '@fr0st/ui-imagecrop';
 
-```html
-<script type="text/javascript" src="/path/to/frost-ui-bundle.min.js"></script>
-<script type="text/javascript" src="/path/to/frost-ui-imagecrop.min.js"></script>
+const crop = ImageCrop.init(document.querySelector('#crop'));
 ```
 
+The package root resolves to the compiled ESM bundle. The `dist/*` and `src/*` subpaths are also exported. UI and fQuery remain external so the component shares the application's instances. Initialize the component in a browser; server-rendered applications should load it on the client.
+
+### Browser (ESM)
+
+Map UI, fQuery, and their core dependency when loading ESM directly:
+
+```html
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.min.css">
+<div id="crop"></div>
+
+<script type="importmap">
+{
+    "imports": {
+        "@fr0st/core": "https://cdn.jsdelivr.net/npm/@fr0st/core@4/dist/frost-core.esm.min.js",
+        "@fr0st/query": "https://cdn.jsdelivr.net/npm/@fr0st/query@5/dist/fquery.esm.min.js",
+        "@fr0st/ui": "https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.esm.min.js"
+    }
+}
+</script>
+<script type="module">
+    import ImageCrop from 'https://cdn.jsdelivr.net/npm/@fr0st/ui-imagecrop@3/dist/frost-ui-imagecrop.esm.min.js';
+
+    const crop = ImageCrop.init(document.querySelector('#crop'));
+</script>
+```
+
+### Browser (UMD)
+
+Load UI's all-in-one bundle first. It supplies both `UI` and `fQuery`:
+
+```html
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.min.css">
+<div id="crop"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui-bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui-imagecrop@3/dist/frost-ui-imagecrop.min.js"></script>
+<script>
+    const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+</script>
+```
+
+The UMD build extends the existing `globalThis.UI` object. Do not load fQuery separately when using `frost-ui-bundle.js`. With UI's non-bundled build, load core, fQuery, UI, then ImageCrop in dependency order.
 
 ## Usage
 
-Check the demo folder for examples. Full documentation and website coming soon™.
+```html
+<label for="image-file">Choose an image</label>
+<input id="image-file" type="file" accept="image/*">
+<div id="crop" class="my-4"></div>
+<button id="render" type="button" disabled>Render crop</button>
+<p id="status" role="status"></p>
+<img id="result" alt="Cropped preview" hidden>
+```
+
+```js
+import ImageCrop from '@fr0st/ui-imagecrop';
+
+const crop = ImageCrop.init(document.querySelector('#crop'));
+const input = document.querySelector('#image-file');
+const render = document.querySelector('#render');
+const status = document.querySelector('#status');
+const result = document.querySelector('#result');
+let ready = false;
+
+input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    input.disabled = true;
+    render.disabled = true;
+    status.textContent = 'Loading image…';
+    try {
+        await crop.load(file);
+        ready = true;
+        status.textContent = 'Drag to pan, or scroll to zoom.';
+    } catch (error) {
+        status.textContent = error.message;
+    } finally {
+        input.disabled = false;
+        render.disabled = !ready;
+    }
+});
+
+render.addEventListener('click', async () => {
+    try {
+        result.src = await crop.result();
+        result.hidden = false;
+    } catch (error) {
+        status.textContent = error.message;
+    }
+});
+```
+
+Always await `load()` before using image methods. Calling `ImageCrop.init()` again for the same host returns the existing instance. Dispose it before changing options. Existing host content is preserved.
+
+See [the demo](./demo/index.html) for file selection, option controls, methods/events, all output formats, and an EXIF gallery. Serve the repository with a static HTTP server and open `demo/index.html`; the demo loads UI from npm's CDN and ImageCrop from the local `dist/` directory.
+
+## Options
+
+Resolution order is defaults, the host's `data-ui-*` attributes, then explicit options. Resolved `instance.options` are frozen.
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `previewWidth` | `number` | `300` | Initial viewport width in CSS pixels. |
+| `previewHeight` | `number` | `300` | Initial viewport height in CSS pixels. |
+| `maxPreviewWidth` | `number \| null` | `null` | Limit the initial and resized viewport width. |
+| `maxPreviewHeight` | `number \| null` | `null` | Limit the initial and resized viewport height. |
+| `maxWidth` | `number \| null` | `null` | Limit exported width while preserving aspect ratio. |
+| `maxHeight` | `number \| null` | `null` | Limit exported height while preserving aspect ratio. |
+| `minZoom` | `number` | `0.1` | Minimum scale. Boundary enforcement can require a larger value. |
+| `maxZoom` | `number` | `10` | Maximum scale, unless covering the viewport requires more. |
+| `zoomAmount` | `number` | `0.1` | Scale increment for wheel zoom. |
+| `circle` | `boolean` | `false` | Round the preview and apply a circular export mask. |
+| `exifOrientation` | `boolean` | `true` | Apply JPEG EXIF orientation. |
+| `zoom` | `boolean` | `true` | Enable programmatic, wheel, and pinch zoom. |
+| `resize` | `boolean` | `false` | Show a mouse-operated viewport resize handle. |
+| `rotate` | `boolean` | `true` | Enable programmatic rotation. |
+| `enforceBoundary` | `boolean` | `true` | Keep the viewport covered by the image. |
+
+Dimensions and zoom settings must be finite and positive; optional limits also accept `null`. `minZoom` must not exceed `maxZoom`. Loading a new image restores the configured initial viewport dimensions.
+
+```html
+<div id="avatar-crop" data-ui-circle="true" data-ui-preview-width="240" data-ui-preview-height="240"></div>
+```
+
+```js
+const avatar = ImageCrop.init(document.querySelector('#avatar-crop'), {
+    maxWidth: 512,
+    maxHeight: 512,
+});
+```
+
+Data attributes configure an instance; they do not initialize one automatically.
+
+## Methods
+
+| Method | Returns | Description |
+| --- | --- | --- |
+| `ImageCrop.init(node, options?)` | `ImageCrop` | Create or reuse the host's component. |
+| `load(file, options?)` | `Promise<void>` | Load a `Blob` or `File` and render the preview. |
+| `getBounds()` | `[number, number, number, number]` | Left, top, right, and bottom crop coordinates in the oriented/rotated image. |
+| `getZoom()` | `number` | Current scale: `1` means one source pixel per preview pixel. |
+| `result(options?)` | `Promise<string \| Blob \| HTMLCanvasElement>` | Render the selected region. |
+| `rotate(amount = 90)` | `void` | Rotate clockwise by a finite multiple of 90; negative values rotate counterclockwise. |
+| `setBounds(x1, y1, x2, y2)` | `void` | Center the requested region, resizing the viewport or adjusting zoom when enabled. |
+| `setZoom(zoom)` | `void` | Set and clamp the scale to the configured limits. |
+| `dispose()` | `void` | Cancel loading, remove generated markup and registered state. Repeatable. |
+
+`load()` accepts `{ x, y, zoom }`. Omitted offsets center the image; omitted zoom fits it and then enforces the configured boundaries and limits. `x` and `y` retain the legacy offset convention: distances from the right and bottom of the unrotated source to the crop center, before EXIF rotation. Prefer `setBounds()` after loading for ordinary left/top crop coordinates.
+
+Bounds must be finite with positive width and height. With `resize: true`, `setBounds()` changes viewport dimensions at the current scale. Otherwise, when zoom is enabled, it scales to cover the viewport. If both are disabled, it only centers the requested region. Boundaries and limits may change the resulting region; call `getBounds()` for the actual crop.
+
+Image-dependent methods throw, or reject their Promise, before successful loading and after disposal. `instance.node` is the original host, and `instance.options` is the frozen configuration; both become `null` after disposal.
+
+## Results
+
+| Result option | Default | Description |
+| --- | --- | --- |
+| `type` | `'base64'` | `'base64'` (a data URL), `'blob'`, or `'canvas'`. |
+| `format` | `'png'` | MIME subtype, such as `'png'` or `'jpeg'`; used for encoded output. |
+| `size` | `'viewport'` | `'viewport'`, `'original'`, or `{ width, height }`. Supply one dimension to preserve the viewport's aspect ratio. |
+| `quality` | `1` | Finite number from 0 to 1, used by lossy encoders such as JPEG. |
+| `circle` | `false` | Apply a circular mask, in addition to the component's `circle` option. |
+| `background` | `null` | Canvas color to fill behind the cropped image, including masked or out-of-image areas. |
+
+```js
+const dataUrl = await crop.result();
+const jpeg = await crop.result({ type: 'blob', format: 'jpeg', quality: .85, background: '#fff' });
+const canvas = await crop.result({ type: 'canvas', size: 'original' });
+const avatar = await crop.result({ type: 'blob', circle: true, size: { width: 256, height: 256 } });
+```
+
+`original` uses source-pixel dimensions for the current crop, not the entire original file. Explicit width and height can stretch the result. Output dimensions are floored to whole pixels with a minimum of one pixel, after applying the component's `maxWidth`/`maxHeight` limits.
+
+A rectangular circular result uses a centered circle fitting the smaller dimension. PNG and canvas preserve transparency; provide a background for predictable JPEG output. Unsupported MIME subtypes use the browser's PNG fallback. Unsupported result types or invalid options reject; Blob encoding also rejects if the browser returns `null`.
+
+Use `URL.createObjectURL(blob)` for Blob previews or downloads. Revoke preview URLs when replacing/removing the preview; allow a download to begin before revoking its URL. Encoded results contain rendered pixels, not the original file's EXIF metadata.
+
+## Events
+
+| Event | Description |
+| --- | --- |
+| `update.ui.imagecrop` | A pan, resize, wheel/pinch gesture, or programmatic geometry change updated the preview. |
+
+```js
+import $ from '@fr0st/query';
+
+$.addEvent('#crop', 'update.ui.imagecrop', () => {
+    console.log(crop.getBounds(), crop.getZoom());
+});
+```
+
+The event originates on the host. Loading and rendering a result do not emit it. Disabled operations, `rotate(0)`, and `setZoom()` with the current value do not emit it. Clamping a requested change can still emit an update even if the effective geometry stays the same. Disposal from an update listener is supported.
+
+## fQuery API
+
+Importing ImageCrop registers `imagecrop` on `fQuery.QuerySet`:
+
+```js
+import $ from '@fr0st/query';
+import '@fr0st/ui-imagecrop';
+
+const crop = $('#crop').imagecrop({ resize: true });
+await $('#crop').imagecrop('load', file);
+$('#crop').imagecrop('rotate', 90);
+$('#crop').imagecrop('setZoom', 1);
+const bounds = $('#crop').imagecrop('getBounds');
+const blob = await $('#crop').imagecrop('result', { type: 'blob' });
+$('#crop').imagecrop('dispose');
+```
+
+An options object initializes every matched host; a public method name invokes that method with the remaining arguments. The first component or method result is returned. Use a single host for async operations when you need to await its completion.
+
+## Loading and orientation
+
+A new load cancels an outstanding load with `AbortError`. Disposal also rejects pending work with `AbortError`, and stale callbacks cannot replace the current image. Failed reads, malformed EXIF, and failed decoding preserve the last successfully loaded image. Gestures are ignored while a replacement is loading.
+
+EXIF metadata is normalized in a newly read buffer before browser decoding, then the component applies the requested orientation once. The supplied Blob is never changed. `exifOrientation: false` displays the raw source orientation even when the browser normally applies EXIF. Loading another image resets reflection and rotation state.
+
+## Styling and accessibility
+
+ImageCrop uses Frost UI's border, position, color, and rounding utilities. There is no component stylesheet or Sass. Themes come from UI; set `data-ui-theme="light"` or `data-ui-theme="dark"` on an ancestor to override the system preference.
+
+The viewport wrapper and canvas stay anchored to the physical left/top, and the resize handle stays at the physical bottom-right in RTL layouts. Bounds do not reverse with text direction.
+
+The viewport supports pointer interaction but does not provide built-in keyboard controls or canvas descriptions. Applications should supply labeled file inputs, status messages, and keyboard-operable buttons or numeric inputs using `setBounds()`, `setZoom()`, and `rotate()`. The demo includes these alternatives. Do not treat the resize handle as an accessible form control.
+
+## Migrating from 2.x
+
+- Requires Frost UI 4 and fQuery 5.
+- Package-root imports resolve to the built ESM bundle; UMD remains under `dist/`.
+- Component internals use private fields and methods. Use the documented API instead of prototype composition or underscore properties.
+- Loading has explicit rejection and cancellation behavior; always handle its Promise.
+- Invalid geometry and export options now reject or throw. Rotation accepts only finite multiples of 90.
+- EXIF is applied exactly once, reflections reset on replacement, and failed replacements preserve the previous image.
+- Canvas dimensions are numeric, and rectangular circular exports fit both dimensions.
+
+## Browser support
+
+Tested with Chromium, Firefox, and WebKit through Playwright. Builds use Vite's `baseline-widely-available` target; the component also relies on the browser APIs required by Frost UI 4, FileReader, Blob/object URLs, and canvas image decoding/encoding.
+
+## Development
+
+Use Node.js matching `^20.19.0 || ^22.13.0 || >=24`:
+
+```bash
+npm ci
+npx playwright install --with-deps
+npm run lint
+npm test
+npm run test:coverage
+```
+
+`npm test` builds ESM and UMD bundles, then runs all three browser suites. `npm run test:browser`, `npm run test:headed`, and `npm run test:ui` use existing bundles; rebuild after source changes. Chromium coverage writes reports to `coverage/`, including `coverage/lcov.info`.
+
+CI follows the UI projects: Chromium on Node 20/22/24, Firefox and WebKit on Node 24, lint/build checks, tracked-bundle verification, and `npm pack --dry-run`. The Node 24 Chromium job uploads coverage using Codecov OIDC, with a 95% project target and 5% threshold.
+
+The release-triggered publish workflow validates the package before `npm publish --provenance`. Configure Codecov for the repository and npm trusted publishing for this repository's `publish.yml` workflow before relying on those external services. Repository links retain the current `elusivecodes/FrostUI-ImageCrop` remote identity.
+
+## License
+
+Frost UI ImageCrop is released under the [MIT License](./LICENSE).
