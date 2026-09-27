@@ -198,11 +198,35 @@ test.describe('ImageCrop results', () => {
         }
     });
 
-    test.describe('quality option', () => {
-        test('rejects quality above one', async ({ page }) => {
-            await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').result({ quality: 2 }))).rejects.toThrow('Quality');
-        });
+    test.describe('maxWidth and maxHeight options', () => {
+        for (const { name, options, width, height, size = 'original' } of [
+            { name: 'maxWidth option', options: { maxWidth: 160 }, width: 160, height: 120 },
+            { name: 'maxHeight option', options: { maxHeight: 90 }, width: 120, height: 90 },
+            { name: 'combined output limits', options: { maxWidth: 160, maxHeight: 90 }, width: 120, height: 90 },
+            { name: 'maxWidth with fractional scaling', options: { maxWidth: 55 }, size: { width: 300, height: 200 }, width: 55, height: 36 },
+            { name: 'maxHeight with fractional scaling', options: { maxHeight: 55 }, size: { width: 200, height: 300 }, width: 36, height: 55 },
+        ]) {
+            test(`limits the output without changing its aspect ratio (${name})`, async ({ page }) => {
+                await page.evaluate(async ({ options, size }) => {
+                    $.getData('#crop', 'imagecrop').dispose();
 
+                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), { ...options, previewWidth: 320, previewHeight: 240 });
+
+                    await crop.load(window.imageFile);
+
+                    const result = await crop.result({ type: 'canvas', size });
+
+                    result.id = 'result';
+                    document.body.append(result);
+                }, { options, size });
+
+                await expect(page.locator('#result')).toHaveAttribute('width', `${width}`);
+                await expect(page.locator('#result')).toHaveAttribute('height', `${height}`);
+            });
+        }
+    });
+
+    test.describe('quality option', () => {
         test('changes JPEG encoding while producing a decodable image', async ({ page }) => {
             const result = await page.evaluate(async () => {
                 const crop = $.getData('#crop', 'imagecrop');
@@ -222,6 +246,10 @@ test.describe('ImageCrop results', () => {
             await expect(page.locator('#result')).toBeVisible();
             await expect(page.locator('#result')).toHaveJSProperty('naturalWidth', 320);
             await expect(page.locator('#result')).toHaveJSProperty('naturalHeight', 240);
+        });
+
+        test('rejects quality above one', async ({ page }) => {
+            await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').result({ quality: 2 }))).rejects.toThrow('Quality');
         });
     });
 
@@ -251,18 +279,6 @@ test.describe('ImageCrop results', () => {
     });
 
     test.describe('circle option', () => {
-        test('fits a circular mask inside rectangular output', async ({ page }) => {
-            const canvas = await page.evaluateHandle(async () => {
-                const crop = $.getData('#crop', 'imagecrop');
-
-                return crop.result({ type: 'canvas', circle: true, size: { width: 200, height: 100 } });
-            });
-            const [outside, inside] = await readPixels(canvas, [[10, 50], [100, 50]]);
-
-            expect(outside[3]).toBe(0);
-            expect(inside[3]).toBe(255);
-        });
-
         for (const source of ['component', 'result']) {
             test(`clips the result when enabled on the ${source}`, async ({ page }) => {
                 const canvas = await page.evaluateHandle(async (source) => {
@@ -286,6 +302,18 @@ test.describe('ImageCrop results', () => {
             });
         }
 
+        test('fits a circular mask inside rectangular output', async ({ page }) => {
+            const canvas = await page.evaluateHandle(async () => {
+                const crop = $.getData('#crop', 'imagecrop');
+
+                return crop.result({ type: 'canvas', circle: true, size: { width: 200, height: 100 } });
+            });
+            const [outside, inside] = await readPixels(canvas, [[10, 50], [100, 50]]);
+
+            expect(outside[3]).toBe(0);
+            expect(inside[3]).toBe(255);
+        });
+
         test('fills the area outside a circle with the selected background', async ({ page }) => {
             const canvas = await page.evaluateHandle(() =>
                 $.getData('#crop', 'imagecrop').result({ type: 'canvas', circle: true, background: '#fff' }),
@@ -295,32 +323,4 @@ test.describe('ImageCrop results', () => {
             expectPixel(pixel, [255, 255, 255, 255]);
         });
     });
-
-    for (const { name, options, width, height, size = 'original' } of [
-        { name: 'maxWidth option', options: { maxWidth: 160 }, width: 160, height: 120 },
-        { name: 'maxHeight option', options: { maxHeight: 90 }, width: 120, height: 90 },
-        { name: 'combined output limits', options: { maxWidth: 160, maxHeight: 90 }, width: 120, height: 90 },
-        { name: 'maxWidth with fractional scaling', options: { maxWidth: 55 }, size: { width: 300, height: 200 }, width: 55, height: 36 },
-        { name: 'maxHeight with fractional scaling', options: { maxHeight: 55 }, size: { width: 200, height: 300 }, width: 36, height: 55 },
-    ]) {
-        test.describe(name, () => {
-            test('limits the output without changing its aspect ratio', async ({ page }) => {
-                await page.evaluate(async ({ options, size }) => {
-                    $.getData('#crop', 'imagecrop').dispose();
-
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), { ...options, previewWidth: 320, previewHeight: 240 });
-
-                    await crop.load(window.imageFile);
-
-                    const result = await crop.result({ type: 'canvas', size });
-
-                    result.id = 'result';
-                    document.body.append(result);
-                }, { options, size });
-
-                await expect(page.locator('#result')).toHaveAttribute('width', `${width}`);
-                await expect(page.locator('#result')).toHaveAttribute('height', `${height}`);
-            });
-        });
-    }
 });

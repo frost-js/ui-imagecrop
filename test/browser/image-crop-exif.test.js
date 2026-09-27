@@ -142,23 +142,6 @@ test.describe('ImageCrop EXIF orientation', () => {
             });
         }
 
-        for (const [name, bytes] of [
-            ['padding', [255, 216, 255, 255, 255]],
-            ['marker', [255, 216, 255, 255, 225]],
-            ['segment length', [255, 216, 255, 255, 225, 0]],
-        ]) {
-            test(`rejects truncated JPEG ${name} after padding and can load a valid image afterward`, async ({ page }) => {
-                await expect(page.evaluate(async (bytes) => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }));
-                }, bytes)).rejects.toThrow('Truncated JPEG metadata');
-
-                const file = await createImage(page);
-
-                await page.evaluate((file) => $.getData('#crop', 'imagecrop').load(file), file);
-                await expect(page.locator('#crop canvas')).toHaveAttribute('width', '640');
-            });
-        }
-
         test('skips an unrelated APP1 segment and an unrelated TIFF tag', async ({ page }) => {
             const file = await createImage(page, { width: 80, height: 40, orientation: 2 });
 
@@ -203,6 +186,23 @@ test.describe('ImageCrop EXIF orientation', () => {
                 canvas.getContext('2d').getImageData(50, 50, 1, 1).data[0],
             )).toBeGreaterThan(250);
         });
+
+        for (const [name, bytes] of [
+            ['padding', [255, 216, 255, 255, 255]],
+            ['marker', [255, 216, 255, 255, 225]],
+            ['segment length', [255, 216, 255, 255, 225, 0]],
+        ]) {
+            test(`rejects truncated JPEG ${name} after padding and can load a valid image afterward`, async ({ page }) => {
+                await expect(page.evaluate(async (bytes) => {
+                    await UI.ImageCrop.init(document.querySelector('#crop')).load(new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }));
+                }, bytes)).rejects.toThrow('Truncated JPEG metadata');
+
+                const file = await createImage(page);
+
+                await page.evaluate((file) => $.getData('#crop', 'imagecrop').load(file), file);
+                await expect(page.locator('#crop canvas')).toHaveAttribute('width', '640');
+            });
+        }
 
         for (const { name, offset, value, size, little = true } of [
             { name: 'segment length', offset: 4, value: 65535, size: 16, little: false },

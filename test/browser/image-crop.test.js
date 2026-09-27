@@ -183,6 +183,19 @@ test.describe('ImageCrop', () => {
     });
 
     test.describe('#load', () => {
+        for (const { name, load } of [
+            { name: 'class', load: () => UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile) },
+            { name: 'QuerySet', load: () => $('#crop').imagecrop('load', window.imageFile) },
+        ]) {
+            test(`loads an image and sizes the viewport (${name})`, async ({ page }) => {
+                await page.evaluate(load);
+                await expect(page.locator('#crop canvas')).toHaveAttribute('width', '640');
+                await expect(page.locator('#crop canvas')).toHaveAttribute('height', '480');
+                await expect(page.locator('#crop > .position-relative')).toHaveCSS('width', '300px');
+                await expect(page.locator('#crop > .position-relative')).toHaveCSS('height', '300px');
+            });
+        }
+
         test('uses explicit source offsets and zoom', async ({ page }) => {
             const bounds = await page.evaluate(async () => {
                 const crop = UI.ImageCrop.init(document.querySelector('#crop'));
@@ -197,49 +210,18 @@ test.describe('ImageCrop', () => {
             }
         });
 
-        for (const failure of ['error', 'abort', 'throw']) {
-            test(`recovers from a file reader ${failure}`, async ({ page }) => {
-                await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
-                });
+        test('resets mirroring when loading a normal image after a mirrored image', async ({ page }) => {
+            const mirrored = await createImage(page, { orientation: 2 });
 
-                await expect(page.evaluate(async (failure) => {
-                    const Reader = window.FileReader;
+            await page.evaluate(async (file) => {
+                await UI.ImageCrop.init(document.querySelector('#crop')).load(file);
+            }, mirrored);
 
-                    window.FileReader = class extends Reader {
-                        readAsArrayBuffer() {
-                            if (failure === 'throw') {
-                                throw new Error('Could not read the image.');
-                            }
-
-                            this.dispatchEvent(new Event(failure));
-                        }
-                    };
-                    try {
-                        await $.getData('#crop', 'imagecrop').load(window.imageFile);
-                    } finally {
-                        window.FileReader = Reader;
-                    }
-                }, failure)).rejects.toThrow(failure === 'abort' ? 'aborted' : 'Could not read');
-
-                await expect(page.locator('#crop canvas')).toHaveAttribute('width', '640');
-                expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[0])).toBe(255);
-                await page.evaluate(() => $.getData('#crop', 'imagecrop').load(window.imageFile));
-            });
-        }
-
-        for (const { name, load } of [
-            { name: 'class', load: () => UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile) },
-            { name: 'QuerySet', load: () => $('#crop').imagecrop('load', window.imageFile) },
-        ]) {
-            test(`loads an image and sizes the viewport (${name})`, async ({ page }) => {
-                await page.evaluate(load);
-                await expect(page.locator('#crop canvas')).toHaveAttribute('width', '640');
-                await expect(page.locator('#crop canvas')).toHaveAttribute('height', '480');
-                await expect(page.locator('#crop > .position-relative')).toHaveCSS('width', '300px');
-                await expect(page.locator('#crop > .position-relative')).toHaveCSS('height', '300px');
-            });
-        }
+            expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[2])).toBeGreaterThan(240);
+            await page.evaluate(() => $.getData('#crop', 'imagecrop').load(window.imageFile));
+            expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[0])).toBe(255);
+            expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[2])).toBe(0);
+        });
 
         test('aborts a superseded load and commits only the replacement', async ({ page }) => {
             const replacement = await createImage(page, { width: 320, height: 240 });
@@ -255,6 +237,16 @@ test.describe('ImageCrop', () => {
 
             await expect(page.locator('#crop canvas')).toHaveAttribute('width', '320');
             await expect(page.locator('#crop canvas')).toHaveAttribute('height', '240');
+        });
+
+        test('rejects input that is not a Blob', async ({ page }) => {
+            await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
+            await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').load(null))).rejects.toThrow('Blob');
+        });
+
+        test('rejects zero initial zoom', async ({ page }) => {
+            await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
+            await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').load(window.imageFile, { zoom: 0 }))).rejects.toThrow('positive');
         });
 
         for (const { name, bytes } of [
@@ -294,34 +286,42 @@ test.describe('ImageCrop', () => {
             expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[0])).toBe(255);
         });
 
-        test('rejects input that is not a Blob', async ({ page }) => {
-            await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
-            await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').load(null))).rejects.toThrow('Blob');
-        });
+        for (const failure of ['error', 'abort', 'throw']) {
+            test(`recovers from a file reader ${failure}`, async ({ page }) => {
+                await page.evaluate(async () => {
+                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                });
 
-        test('rejects zero initial zoom', async ({ page }) => {
-            await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
-            await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').load(window.imageFile, { zoom: 0 }))).rejects.toThrow('positive');
-        });
+                await expect(page.evaluate(async (failure) => {
+                    const Reader = window.FileReader;
+
+                    window.FileReader = class extends Reader {
+                        readAsArrayBuffer() {
+                            if (failure === 'throw') {
+                                throw new Error('Could not read the image.');
+                            }
+
+                            this.dispatchEvent(new Event(failure));
+                        }
+                    };
+                    try {
+                        await $.getData('#crop', 'imagecrop').load(window.imageFile);
+                    } finally {
+                        window.FileReader = Reader;
+                    }
+                }, failure)).rejects.toThrow(failure === 'abort' ? 'aborted' : 'Could not read');
+
+                await expect(page.locator('#crop canvas')).toHaveAttribute('width', '640');
+                expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[0])).toBe(255);
+                await page.evaluate(() => $.getData('#crop', 'imagecrop').load(window.imageFile));
+            });
+        }
 
         test('rejects loading after disposal', async ({ page }) => {
             const instance = await page.evaluateHandle(() => UI.ImageCrop.init(document.querySelector('#crop')));
 
             await instance.evaluate((value) => value.dispose());
             await expect(instance.evaluate((value) => value.load(window.imageFile))).rejects.toThrow('disposed');
-        });
-
-        test('resets mirroring when loading a normal image after a mirrored image', async ({ page }) => {
-            const mirrored = await createImage(page, { orientation: 2 });
-
-            await page.evaluate(async (file) => {
-                await UI.ImageCrop.init(document.querySelector('#crop')).load(file);
-            }, mirrored);
-
-            expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[2])).toBeGreaterThan(240);
-            await page.evaluate(() => $.getData('#crop', 'imagecrop').load(window.imageFile));
-            expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[0])).toBe(255);
-            expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[2])).toBe(0);
         });
     });
 
@@ -421,6 +421,21 @@ test.describe('ImageCrop', () => {
     });
 
     test.describe('#rotate', () => {
+        for (const { name, rotate } of [
+            { name: 'class', rotate: () => $.getData('#crop', 'imagecrop').rotate(-90) },
+            { name: 'QuerySet', rotate: () => $('#crop').imagecrop('rotate', -90) },
+        ]) {
+            test(`supports negative quarter turns (${name})`, async ({ page }) => {
+                await page.evaluate(async () => {
+                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                });
+                await page.evaluate(rotate);
+                await expect(page.locator('#crop canvas')).toHaveAttribute('width', '480');
+                await expect(page.locator('#crop canvas')).toHaveAttribute('height', '640');
+                expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[2])).toBe(255);
+            });
+        }
+
         test('restores pixels and bounds after a complete turn', async ({ page }) => {
             await page.evaluate(async () => {
                 const crop = UI.ImageCrop.init(document.querySelector('#crop'));
@@ -448,37 +463,6 @@ test.describe('ImageCrop', () => {
             }
         });
 
-        for (const { name, rotate } of [
-            { name: 'class', rotate: () => $.getData('#crop', 'imagecrop').rotate(-90) },
-            { name: 'QuerySet', rotate: () => $('#crop').imagecrop('rotate', -90) },
-        ]) {
-            test(`supports negative quarter turns (${name})`, async ({ page }) => {
-                await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
-                });
-                await page.evaluate(rotate);
-                await expect(page.locator('#crop canvas')).toHaveAttribute('width', '480');
-                await expect(page.locator('#crop canvas')).toHaveAttribute('height', '640');
-                expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[2])).toBe(255);
-            });
-        }
-
-        for (const { name, angle } of [
-            { name: 'a non-quarter turn', angle: 45 },
-            { name: 'NaN', angle: NaN },
-            { name: 'infinity', angle: Infinity },
-        ]) {
-            test(`rejects ${name} without changing the image`, async ({ page }) => {
-                await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
-                });
-
-                await expect(page.evaluate((angle) => $.getData('#crop', 'imagecrop').rotate(angle), angle)).rejects.toThrow('multiple of 90');
-
-                await expect(page.locator('#crop canvas')).toHaveAttribute('width', '640');
-            });
-        }
-
         test('reclamps offsets for a non-square viewport', async ({ page }) => {
             const bounds = await page.evaluate(async () => {
                 const crop = UI.ImageCrop.init(document.querySelector('#crop'), { previewWidth: 300, previewHeight: 100 });
@@ -496,6 +480,22 @@ test.describe('ImageCrop', () => {
             expect(bounds[3]).toBeLessThanOrEqual(640);
         });
 
+        for (const { name, angle } of [
+            { name: 'a non-quarter turn', angle: 45 },
+            { name: 'NaN', angle: NaN },
+            { name: 'infinity', angle: Infinity },
+        ]) {
+            test(`rejects ${name} without changing the image`, async ({ page }) => {
+                await page.evaluate(async () => {
+                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                });
+
+                await expect(page.evaluate((angle) => $.getData('#crop', 'imagecrop').rotate(angle), angle)).rejects.toThrow('multiple of 90');
+
+                await expect(page.locator('#crop canvas')).toHaveAttribute('width', '640');
+            });
+        }
+
         test('rejects calls before loading an image', async ({ page }) => {
             await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
             await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').rotate())).rejects.toThrow('Load an image');
@@ -503,6 +503,24 @@ test.describe('ImageCrop', () => {
     });
 
     test.describe('#setBounds', () => {
+        for (const { name, set } of [
+            { name: 'class', set: () => $.getData('#crop', 'imagecrop').setBounds(100, 100, 300, 300) },
+            { name: 'QuerySet', set: () => $('#crop').imagecrop('setBounds', 100, 100, 300, 300) },
+        ]) {
+            test(`sets the crop coordinates (${name})`, async ({ page }) => {
+                await page.evaluate(async () => {
+                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                });
+                await page.evaluate(set);
+
+                const bounds = await page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds());
+
+                for (const [index, expected] of [100, 100, 300, 300].entries()) {
+                    expect(bounds[index]).toBeCloseTo(expected);
+                }
+            });
+        }
+
         test('resizes the viewport at the current zoom', async ({ page }) => {
             const bounds = await page.evaluate(async () => {
                 const crop = UI.ImageCrop.init(document.querySelector('#crop'), { resize: true });
@@ -535,24 +553,6 @@ test.describe('ImageCrop', () => {
                 expect(bounds[index]).toBeCloseTo(expected);
             }
         });
-
-        for (const { name, set } of [
-            { name: 'class', set: () => $.getData('#crop', 'imagecrop').setBounds(100, 100, 300, 300) },
-            { name: 'QuerySet', set: () => $('#crop').imagecrop('setBounds', 100, 100, 300, 300) },
-        ]) {
-            test(`sets the crop coordinates (${name})`, async ({ page }) => {
-                await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
-                });
-                await page.evaluate(set);
-
-                const bounds = await page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds());
-
-                for (const [index, expected] of [100, 100, 300, 300].entries()) {
-                    expect(bounds[index]).toBeCloseTo(expected);
-                }
-            });
-        }
 
         for (const { name, bounds } of [
             { name: 'zero width', bounds: [0, 0, 0, 10] },
@@ -678,222 +678,230 @@ test.describe('ImageCrop', () => {
             await setupTouchEvents(page);
         });
 
-        for (const direction of ['ltr', 'rtl']) {
-            test(`pans with the mouse in ${direction}`, async ({ page }) => {
-                await page.evaluate(async (direction) => {
-                    document.documentElement.dir = direction;
+        test.describe('mouse', () => {
+            for (const direction of ['ltr', 'rtl']) {
+                test(`pans with the mouse in ${direction}`, async ({ page }) => {
+                    await page.evaluate(async (direction) => {
+                        document.documentElement.dir = direction;
 
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                        const crop = UI.ImageCrop.init(document.querySelector('#crop'));
 
-                    await crop.load(window.imageFile, { zoom: 1 });
-                    window.updates = 0;
-                    $.addEvent(crop.node, 'update.ui.imagecrop', () => window.updates++);
-                }, direction);
+                        await crop.load(window.imageFile, { zoom: 1 });
+                        window.updates = 0;
+                        $.addEvent(crop.node, 'update.ui.imagecrop', () => window.updates++);
+                    }, direction);
 
-                const box = await page.locator('#crop .overflow-hidden').boundingBox();
+                    const box = await page.locator('#crop .overflow-hidden').boundingBox();
 
-                await page.mouse.move(box.x + 100, box.y + 100);
+                    await page.mouse.move(box.x + 100, box.y + 100);
+                    await page.mouse.down();
+                    await page.mouse.move(box.x + 140, box.y + 120, { steps: 4 });
+                    await page.mouse.up();
+
+                    const bounds = await page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds());
+
+                    for (const [index, expected] of [130, 70, 430, 370].entries()) {
+                        expect(bounds[index]).toBeCloseTo(expected);
+                    }
+
+                    expect(await page.evaluate(() => window.updates)).toBeGreaterThan(0);
+                    await page.mouse.move(box.x + 200, box.y + 200);
+                    expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds()[0])).toBeCloseTo(130);
+                });
+            }
+
+            test('clamps dragging to the image boundary', async ({ page }) => {
+                await page.evaluate(async () => {
+                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile, { zoom: 1 });
+                });
+                await page.locator('#crop .overflow-hidden').hover();
                 await page.mouse.down();
-                await page.mouse.move(box.x + 140, box.y + 120, { steps: 4 });
+                await page.mouse.move(750, 550, { steps: 4 });
                 await page.mouse.up();
 
                 const bounds = await page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds());
 
-                for (const [index, expected] of [130, 70, 430, 370].entries()) {
+                for (const [index, expected] of [0, 0, 300, 300].entries()) {
                     expect(bounds[index]).toBeCloseTo(expected);
                 }
-
-                expect(await page.evaluate(() => window.updates)).toBeGreaterThan(0);
-                await page.mouse.move(box.x + 200, box.y + 200);
-                expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds()[0])).toBeCloseTo(130);
             });
-        }
 
-        test('clamps dragging to the image boundary', async ({ page }) => {
-            await page.evaluate(async () => {
-                await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile, { zoom: 1 });
+            test('ignores secondary-button dragging and resizing', async ({ page }) => {
+                await page.evaluate(async () => {
+                    await UI.ImageCrop.init(document.querySelector('#crop'), { resize: true }).load(window.imageFile, { zoom: 1 });
+                });
+                for (const selector of ['#crop .overflow-hidden', '#crop .top-100']) {
+                    await page.locator(selector).hover();
+                    await page.mouse.down({ button: 'right' });
+                    await page.mouse.move(500, 400, { steps: 4 });
+                    await page.mouse.up({ button: 'right' });
+                }
+
+                await expect(page.locator('#crop > .position-relative')).toHaveCSS('width', '300px');
+                await expect(page.locator('#crop > .position-relative')).toHaveCSS('height', '300px');
+                expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds()[0])).toBeCloseTo(170);
             });
-            await page.locator('#crop .overflow-hidden').hover();
-            await page.mouse.down();
-            await page.mouse.move(750, 550, { steps: 4 });
-            await page.mouse.up();
+        });
 
-            const bounds = await page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds());
+        test.describe('wheel', () => {
+            test('zooms in and out with the wheel', async ({ page }) => {
+                await page.evaluate(async () => {
+                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile, { zoom: 1 });
+                });
+                await page.locator('#crop .overflow-hidden').hover();
+                await page.mouse.wheel(0, -100);
+                await expect.poll(() => page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBeCloseTo(1.1);
+                await page.mouse.wheel(0, 100);
+                await expect.poll(() => page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBeCloseTo(1);
+            });
+        });
 
-            for (const [index, expected] of [0, 0, 300, 300].entries()) {
-                expect(bounds[index]).toBeCloseTo(expected);
+        test.describe('touch', () => {
+            for (const { name, start, end, zoom, left } of [
+                { name: 'pans with one touch', start: [100], end: [140], zoom: 1, left: 130 },
+                { name: 'zooms in with a pinch', start: [100, 200], end: [50, 250], zoom: 1 + 100 / Math.hypot(300, 300) },
+                { name: 'zooms out with a pinch', start: [50, 250], end: [100, 200], zoom: 1 - 100 / Math.hypot(300, 300) },
+                { name: 'ignores three touches', start: [100, 150, 200], end: [50, 150, 250], zoom: 1, left: 170 },
+            ]) {
+                test(name, async ({ page }) => {
+                    await page.evaluate(async ({ start, end }) => {
+                        const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+
+                        await crop.load(window.imageFile, { zoom: 1 });
+
+                        const container = document.querySelector('#crop .overflow-hidden');
+
+                        for (const [type, positions] of [['touchstart', start], ['touchmove', end], ['touchend', []]]) {
+                            const event = window.createTouchEvent(type, positions);
+
+                            (type === 'touchstart' ? container : window).dispatchEvent(event);
+                            await Promise.resolve();
+                        }
+                    }, { start, end });
+
+                    expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBeCloseTo(zoom);
+                    if (left !== undefined) {
+                        expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds()[0])).toBeCloseTo(left);
+                    }
+                });
             }
-        });
 
-        test('ignores secondary-button dragging and resizing', async ({ page }) => {
-            await page.evaluate(async () => {
-                await UI.ImageCrop.init(document.querySelector('#crop'), { resize: true }).load(window.imageFile, { zoom: 1 });
-            });
-            for (const selector of ['#crop .overflow-hidden', '#crop .top-100']) {
-                await page.locator(selector).hover();
-                await page.mouse.down({ button: 'right' });
-                await page.mouse.move(500, 400, { steps: 4 });
-                await page.mouse.up({ button: 'right' });
+            for (const { remaining, zoom } of [
+                { remaining: 50, zoom: true },
+                { remaining: 250, zoom: true },
+                { remaining: 50, zoom: false },
+                { remaining: 250, zoom: false },
+            ]) {
+                test(`resumes panning from the remaining touch at ${remaining} with zoom ${zoom}`, async ({ page }) => {
+                    const movement = await page.evaluate(async ({ remaining, zoom }) => {
+                        const crop = UI.ImageCrop.init(document.querySelector('#crop'), { zoom });
+
+                        await crop.load(window.imageFile, { zoom: 1 });
+
+                        const container = document.querySelector('#crop .overflow-hidden');
+                        const canvas = document.querySelector('#crop canvas');
+
+                        for (const [type, positions] of [
+                            ['touchstart', [100]],
+                            ['touchstart', [100, 200]],
+                            ['touchmove', [50, 250]],
+                            ['touchend', [remaining]],
+                        ]) {
+                            const event = window.createTouchEvent(type, positions);
+
+                            container.dispatchEvent(event);
+                            await Promise.resolve();
+                        }
+
+                        const before = canvas.getBoundingClientRect();
+                        const move = window.createTouchEvent('touchmove', [remaining + 1], 102);
+
+                        window.dispatchEvent(move);
+                        await Promise.resolve();
+
+                        const after = canvas.getBoundingClientRect();
+                        const end = window.createTouchEvent('touchend', []);
+
+                        window.dispatchEvent(end);
+                        await Promise.resolve();
+
+                        return { x: after.x - before.x, y: after.y - before.y };
+                    }, { remaining, zoom });
+
+                    expect(movement.x).toBeCloseTo(1);
+                    expect(movement.y).toBeCloseTo(2);
+                    expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBeCloseTo(zoom ? 1 + 100 / Math.hypot(300, 300) : 1);
+                });
             }
 
-            await expect(page.locator('#crop > .position-relative')).toHaveCSS('width', '300px');
-            await expect(page.locator('#crop > .position-relative')).toHaveCSS('height', '300px');
-            expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds()[0])).toBeCloseTo(170);
-        });
-
-        test('zooms in and out with the wheel', async ({ page }) => {
-            await page.evaluate(async () => {
-                await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile, { zoom: 1 });
-            });
-            await page.locator('#crop .overflow-hidden').hover();
-            await page.mouse.wheel(0, -100);
-            await expect.poll(() => page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBeCloseTo(1.1);
-            await page.mouse.wheel(0, 100);
-            await expect.poll(() => page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBeCloseTo(1);
-        });
-
-        for (const { name, start, end, zoom, left } of [
-            { name: 'pans with one touch', start: [100], end: [140], zoom: 1, left: 130 },
-            { name: 'zooms in with a pinch', start: [100, 200], end: [50, 250], zoom: 1 + 100 / Math.hypot(300, 300) },
-            { name: 'zooms out with a pinch', start: [50, 250], end: [100, 200], zoom: 1 - 100 / Math.hypot(300, 300) },
-            { name: 'ignores three touches', start: [100, 150, 200], end: [50, 150, 250], zoom: 1, left: 170 },
-        ]) {
-            test(name, async ({ page }) => {
-                await page.evaluate(async ({ start, end }) => {
+            test('stops pinch zoom after touch cancellation', async ({ page }) => {
+                const zoom = await page.evaluate(async () => {
                     const crop = UI.ImageCrop.init(document.querySelector('#crop'));
 
                     await crop.load(window.imageFile, { zoom: 1 });
 
-                    const container = document.querySelector('#crop .overflow-hidden');
-
-                    for (const [type, positions] of [['touchstart', start], ['touchmove', end], ['touchend', []]]) {
-                        const event = window.createTouchEvent(type, positions);
-
-                        (type === 'touchstart' ? container : window).dispatchEvent(event);
-                        await Promise.resolve();
-                    }
-                }, { start, end });
-
-                expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBeCloseTo(zoom);
-                if (left !== undefined) {
-                    expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds()[0])).toBeCloseTo(left);
-                }
-            });
-        }
-
-        for (const { remaining, zoom } of [
-            { remaining: 50, zoom: true },
-            { remaining: 250, zoom: true },
-            { remaining: 50, zoom: false },
-            { remaining: 250, zoom: false },
-        ]) {
-            test(`resumes panning from the remaining touch at ${remaining} with zoom ${zoom}`, async ({ page }) => {
-                const movement = await page.evaluate(async ({ remaining, zoom }) => {
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), { zoom });
-
-                    await crop.load(window.imageFile, { zoom: 1 });
-
-                    const container = document.querySelector('#crop .overflow-hidden');
-                    const canvas = document.querySelector('#crop canvas');
-
                     for (const [type, positions] of [
-                        ['touchstart', [100]],
                         ['touchstart', [100, 200]],
+                        ['touchcancel', []],
                         ['touchmove', [50, 250]],
-                        ['touchend', [remaining]],
                     ]) {
                         const event = window.createTouchEvent(type, positions);
 
-                        container.dispatchEvent(event);
+                        (type === 'touchstart' ? document.querySelector('#crop .overflow-hidden') : window).dispatchEvent(event);
                         await Promise.resolve();
                     }
 
-                    const before = canvas.getBoundingClientRect();
-                    const move = window.createTouchEvent('touchmove', [remaining + 1], 102);
+                    return crop.getZoom();
+                });
 
-                    window.dispatchEvent(move);
-                    await Promise.resolve();
-
-                    const after = canvas.getBoundingClientRect();
-                    const end = window.createTouchEvent('touchend', []);
-
-                    window.dispatchEvent(end);
-                    await Promise.resolve();
-
-                    return { x: after.x - before.x, y: after.y - before.y };
-                }, { remaining, zoom });
-
-                expect(movement.x).toBeCloseTo(1);
-                expect(movement.y).toBeCloseTo(2);
-                expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBeCloseTo(zoom ? 1 + 100 / Math.hypot(300, 300) : 1);
+                expect(zoom).toBe(1);
             });
-        }
-
-        test('stops pinch zoom after touch cancellation', async ({ page }) => {
-            const zoom = await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'));
-
-                await crop.load(window.imageFile, { zoom: 1 });
-
-                for (const [type, positions] of [
-                    ['touchstart', [100, 200]],
-                    ['touchcancel', []],
-                    ['touchmove', [50, 250]],
-                ]) {
-                    const event = window.createTouchEvent(type, positions);
-
-                    (type === 'touchstart' ? document.querySelector('#crop .overflow-hidden') : window).dispatchEvent(event);
-                    await Promise.resolve();
-                }
-
-                return crop.getZoom();
-            });
-
-            expect(zoom).toBe(1);
         });
 
-        for (const gesture of ['pan', 'resize', 'pinch']) {
-            for (const action of ['dispose', 'load']) {
-                test(`ignores stale ${gesture} movement after ${action}`, async ({ page }) => {
-                    const errors = [];
+        test.describe('interruption', () => {
+            for (const gesture of ['pan', 'resize', 'pinch']) {
+                for (const action of ['dispose', 'load']) {
+                    test(`ignores stale ${gesture} movement after ${action}`, async ({ page }) => {
+                        const errors = [];
 
-                    page.on('pageerror', (error) => errors.push(error.message));
-                    await page.evaluate(async ({ gesture, action }) => {
-                        const crop = UI.ImageCrop.init(document.querySelector('#crop'), { resize: true });
+                        page.on('pageerror', (error) => errors.push(error.message));
+                        await page.evaluate(async ({ gesture, action }) => {
+                            const crop = UI.ImageCrop.init(document.querySelector('#crop'), { resize: true });
 
-                        await crop.load(window.imageFile, { zoom: 1 });
-
-                        const target = document.querySelector(gesture === 'resize' ? '#crop .top-100' : '#crop .overflow-hidden');
-
-                        target.dispatchEvent(gesture === 'pinch' ?
-                            window.createTouchEvent('touchstart', [100, 200]) :
-                            new MouseEvent('mousedown', { clientX: 100, clientY: 100 }));
-                        if (action === 'dispose') {
-                            crop.dispose();
-                        } else {
                             await crop.load(window.imageFile, { zoom: 1 });
+
+                            const target = document.querySelector(gesture === 'resize' ? '#crop .top-100' : '#crop .overflow-hidden');
+
+                            target.dispatchEvent(gesture === 'pinch' ?
+                                window.createTouchEvent('touchstart', [100, 200]) :
+                                new MouseEvent('mousedown', { clientX: 100, clientY: 100 }));
+                            if (action === 'dispose') {
+                                crop.dispose();
+                            } else {
+                                await crop.load(window.imageFile, { zoom: 1 });
+                            }
+
+                            window.dispatchEvent(gesture === 'pinch' ?
+                                window.createTouchEvent('touchmove', [50, 250]) :
+                                new MouseEvent('mousemove', { clientX: 200, clientY: 200 }));
+                            await Promise.resolve();
+                            window.dispatchEvent(gesture === 'pinch' ?
+                                window.createTouchEvent('touchend', []) :
+                                new MouseEvent('mouseup'));
+                        }, { gesture, action });
+
+                        expect(errors).toHaveLength(0);
+                        if (action === 'dispose') {
+                            await expect(page.locator('#crop canvas')).toHaveCount(0);
+                        } else {
+                            await expect(page.locator('#crop > .position-relative')).toHaveCSS('width', '300px');
+                            expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBe(1);
+                            expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds()[0])).toBeCloseTo(170);
                         }
-
-                        window.dispatchEvent(gesture === 'pinch' ?
-                            window.createTouchEvent('touchmove', [50, 250]) :
-                            new MouseEvent('mousemove', { clientX: 200, clientY: 200 }));
-                        await Promise.resolve();
-                        window.dispatchEvent(gesture === 'pinch' ?
-                            window.createTouchEvent('touchend', []) :
-                            new MouseEvent('mouseup'));
-                    }, { gesture, action });
-
-                    expect(errors).toHaveLength(0);
-                    if (action === 'dispose') {
-                        await expect(page.locator('#crop canvas')).toHaveCount(0);
-                    } else {
-                        await expect(page.locator('#crop > .position-relative')).toHaveCSS('width', '300px');
-                        expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBe(1);
-                        expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds()[0])).toBeCloseTo(170);
-                    }
-                });
+                    });
+                }
             }
-        }
+        });
 
         test('ignores gestures before loading', async ({ page }) => {
             const errors = [];
@@ -944,38 +952,6 @@ test.describe('ImageCrop', () => {
         });
     });
 
-    test.describe('rotate option', () => {
-        test('disables rotation', async ({ page }) => {
-            await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { rotate: false });
-
-                await crop.load(window.imageFile);
-                crop.rotate();
-            });
-
-            await expect(page.locator('#crop canvas')).toHaveAttribute('width', '640');
-            await expect(page.locator('#crop canvas')).toHaveAttribute('height', '480');
-            expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[0])).toBe(255);
-        });
-    });
-
-    test.describe('enforceBoundary option', () => {
-        test('allows zoom and bounds outside the image when disabled', async ({ page }) => {
-            const bounds = await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { enforceBoundary: false });
-
-                await crop.load(window.imageFile);
-                crop.setBounds(-100, -100, 900, 900);
-
-                return crop.getBounds();
-            });
-
-            for (const [index, expected] of [-100, -100, 900, 900].entries()) {
-                expect(bounds[index]).toBeCloseTo(expected);
-            }
-        });
-    });
-
     for (const { name, options, requested, expected } of [
         { name: 'minZoom', options: { minZoom: .8 }, requested: .1, expected: .8 },
         { name: 'maxZoom', options: { maxZoom: 2 }, requested: 10, expected: 2 },
@@ -1007,31 +983,37 @@ test.describe('ImageCrop', () => {
         });
     });
 
-    for (const { option, dimension } of [
-        { option: 'maxPreviewWidth', dimension: 'width' },
-        { option: 'maxPreviewHeight', dimension: 'height' },
-    ]) {
-        test.describe(`${option} option`, () => {
-            test(`limits initial and resized viewport ${dimension}`, async ({ page }) => {
-                await page.evaluate(async (option) => {
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), { resize: true, [option]: 200 });
+    test.describe('rotate option', () => {
+        test('disables rotation', async ({ page }) => {
+            await page.evaluate(async () => {
+                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { rotate: false });
 
-                    await crop.load(window.imageFile, { zoom: 1 });
-                }, option);
-
-                const viewport = page.locator('#crop > .position-relative');
-
-                await expect(viewport).toHaveCSS(dimension, '200px');
-
-                await page.locator('#crop .top-100').hover();
-                await page.mouse.down();
-                await page.mouse.move(500, 400, { steps: 4 });
-                await page.mouse.up();
-
-                await expect(viewport).toHaveCSS(dimension, '200px');
+                await crop.load(window.imageFile);
+                crop.rotate();
             });
+
+            await expect(page.locator('#crop canvas')).toHaveAttribute('width', '640');
+            await expect(page.locator('#crop canvas')).toHaveAttribute('height', '480');
+            expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[0])).toBe(255);
         });
-    }
+    });
+
+    test.describe('enforceBoundary option', () => {
+        test('allows zoom and bounds outside the image when disabled', async ({ page }) => {
+            const bounds = await page.evaluate(async () => {
+                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { enforceBoundary: false });
+
+                await crop.load(window.imageFile);
+                crop.setBounds(-100, -100, 900, 900);
+
+                return crop.getBounds();
+            });
+
+            for (const [index, expected] of [-100, -100, 900, 900].entries()) {
+                expect(bounds[index]).toBeCloseTo(expected);
+            }
+        });
+    });
 
     test.describe('resize option', () => {
         test('has no resize handle when disabled', async ({ page }) => {
@@ -1099,6 +1081,32 @@ test.describe('ImageCrop', () => {
             await expect(page.locator('#crop > .position-relative')).toHaveCSS('height', '1px');
         });
     });
+
+    for (const { option, dimension } of [
+        { option: 'maxPreviewWidth', dimension: 'width' },
+        { option: 'maxPreviewHeight', dimension: 'height' },
+    ]) {
+        test.describe(`${option} option`, () => {
+            test(`limits initial and resized viewport ${dimension}`, async ({ page }) => {
+                await page.evaluate(async (option) => {
+                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), { resize: true, [option]: 200 });
+
+                    await crop.load(window.imageFile, { zoom: 1 });
+                }, option);
+
+                const viewport = page.locator('#crop > .position-relative');
+
+                await expect(viewport).toHaveCSS(dimension, '200px');
+
+                await page.locator('#crop .top-100').hover();
+                await page.mouse.down();
+                await page.mouse.move(500, 400, { steps: 4 });
+                await page.mouse.up();
+
+                await expect(viewport).toHaveCSS(dimension, '200px');
+            });
+        });
+    }
 
     test.describe('exifOrientation option', () => {
         for (const enabled of [true, false]) {
