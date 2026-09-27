@@ -491,71 +491,63 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			};
 			const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent);
 			_fr0st_query.default.addEvent(this.#container, "mousedown.ui.imagecrop touchstart.ui.imagecrop", dragEvent);
-			if (this.options.resize) this.#eventsResize();
-			if (this.options.zoom) this.#eventsZoom((e) => {
-				if (e.touches.length === 1) lastPos = (0, _fr0st_ui.getPosition)(e);
-			});
-		}
-		/**
-		* Attaches resize events.
-		*/
-		#eventsResize() {
-			let lastPos;
-			let image;
-			const downEvent = (e) => {
-				if (e.button || !this.node || !this.#img || this.#cancelLoad) return false;
-				e.stopPropagation();
-				image = this.#img;
-				lastPos = (0, _fr0st_ui.getPosition)(e);
-			};
-			const moveEvent = (e) => {
-				if (!this.node || this.#img !== image || this.#cancelLoad) return;
-				const newPos = (0, _fr0st_ui.getPosition)(e);
-				const width = this.#previewWidth + newPos.x - lastPos.x;
-				const height = this.#previewHeight + newPos.y - lastPos.y;
-				lastPos = newPos;
-				this.#resizePreview(width, height);
-				this.#updatePreview();
-				_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
-			};
-			const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent);
-			_fr0st_query.default.addEvent(this.#resize, "mousedown.ui.imagecrop", dragEvent);
-		}
-		/**
-		* Attaches zoom events.
-		* @param {(event: TouchEvent) => void} upEvent The pinch end callback.
-		*/
-		#eventsZoom(upEvent) {
-			let lastDist;
-			let image;
-			const downEvent = (e) => {
-				if (!this.node || !this.#img || this.#cancelLoad) return false;
-				image = this.#img;
-				lastDist = getTouchDistance(e);
-			};
-			const moveEvent = (e) => {
-				if (!this.node || this.#img !== image || this.#cancelLoad) return;
-				const newDist = getTouchDistance(e);
-				const diff = newDist - lastDist;
-				lastDist = newDist;
-				this.#zoom += diff / _fr0st_query.default._dist(0, 0, this.#previewWidth, this.#previewHeight);
-				this.#clampZoom();
-				this.#clampOffset();
-				this.#updatePreview();
-				_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
-			};
-			const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent, upEvent, { touches: 2 });
-			_fr0st_query.default.addEvent(this.#container, "touchstart.ui.imagecrop", dragEvent);
-			_fr0st_query.default.addEvent(this.#container, "wheel.ui.imagecrop", (e) => {
-				if (!this.node || !this.#img || this.#cancelLoad) return;
-				e.preventDefault();
-				if (e.deltaY > 0) this.#zoom -= this.options.zoomAmount;
-				else if (e.deltaY < 0) this.#zoom += this.options.zoomAmount;
-				this.#clampZoom();
-				this.#clampOffset();
-				this.#updatePreview();
-				_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
-			});
+			if (this.options.resize) {
+				let lastPos;
+				let image;
+				const downEvent = (e) => {
+					if (e.button || !this.node || !this.#img || this.#cancelLoad) return false;
+					e.stopPropagation();
+					image = this.#img;
+					lastPos = (0, _fr0st_ui.getPosition)(e);
+				};
+				const moveEvent = (e) => {
+					if (!this.node || this.#img !== image || this.#cancelLoad) return;
+					const newPos = (0, _fr0st_ui.getPosition)(e);
+					const width = this.#previewWidth + newPos.x - lastPos.x;
+					const height = this.#previewHeight + newPos.y - lastPos.y;
+					lastPos = newPos;
+					this.#resizePreview(width, height);
+					this.#updatePreview();
+					_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
+				};
+				const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent);
+				_fr0st_query.default.addEvent(this.#resize, "mousedown.ui.imagecrop", dragEvent);
+			}
+			if (this.options.zoom) {
+				let lastDist;
+				let image;
+				const downEvent = (e) => {
+					if (!this.node || !this.#img || this.#cancelLoad) return false;
+					image = this.#img;
+					lastDist = getTouchDistance(e);
+				};
+				const moveEvent = (e) => {
+					if (!this.node || this.#img !== image || this.#cancelLoad) return;
+					const newDist = getTouchDistance(e);
+					const diff = newDist - lastDist;
+					lastDist = newDist;
+					this.#zoom += diff / _fr0st_query.default._dist(0, 0, this.#previewWidth, this.#previewHeight);
+					this.#clampZoom();
+					this.#clampOffset();
+					this.#updatePreview();
+					_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
+				};
+				const upEvent = (e) => {
+					if (e.touches.length === 1) lastPos = (0, _fr0st_ui.getPosition)(e);
+				};
+				const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent, upEvent, { touches: 2 });
+				_fr0st_query.default.addEvent(this.#container, "touchstart.ui.imagecrop", dragEvent);
+				_fr0st_query.default.addEvent(this.#container, "wheel.ui.imagecrop", (e) => {
+					if (!this.node || !this.#img || this.#cancelLoad) return;
+					e.preventDefault();
+					if (e.deltaY > 0) this.#zoom -= this.options.zoomAmount;
+					else if (e.deltaY < 0) this.#zoom += this.options.zoomAmount;
+					this.#clampZoom();
+					this.#clampOffset();
+					this.#updatePreview();
+					_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
+				});
+			}
 		}
 		/**
 		* Renders the ImageCrop.

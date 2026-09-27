@@ -571,118 +571,105 @@ export default class ImageCrop extends BaseComponent {
         $.addEvent(this.#container, 'mousedown.ui.imagecrop touchstart.ui.imagecrop', dragEvent);
 
         if (this.options.resize) {
-            this.#eventsResize();
+            let lastPos;
+            let image;
+
+            const downEvent = (e) => {
+                if (e.button || !this.node || !this.#img || this.#cancelLoad) {
+                    return false;
+                }
+
+                e.stopPropagation();
+
+                image = this.#img;
+                lastPos = getPosition(e);
+            };
+
+            const moveEvent = (e) => {
+                if (!this.node || this.#img !== image || this.#cancelLoad) {
+                    return;
+                }
+
+                const newPos = getPosition(e);
+                const width = this.#previewWidth + newPos.x - lastPos.x;
+                const height = this.#previewHeight + newPos.y - lastPos.y;
+
+                lastPos = newPos;
+
+                this.#resizePreview(width, height);
+                this.#updatePreview();
+
+                $.triggerEvent(this.node, 'update.ui.imagecrop');
+            };
+
+            const dragEvent = $.mouseDragFactory(downEvent, moveEvent);
+
+            $.addEvent(this.#resize, 'mousedown.ui.imagecrop', dragEvent);
         }
 
         if (this.options.zoom) {
-            this.#eventsZoom((e) => {
+            let lastDist;
+            let image;
+
+            const downEvent = (e) => {
+                if (!this.node || !this.#img || this.#cancelLoad) {
+                    return false;
+                }
+
+                image = this.#img;
+                lastDist = getTouchDistance(e);
+            };
+
+            const moveEvent = (e) => {
+                if (!this.node || this.#img !== image || this.#cancelLoad) {
+                    return;
+                }
+
+                const newDist = getTouchDistance(e);
+                const diff = newDist - lastDist;
+
+                lastDist = newDist;
+
+                this.#zoom += diff / $._dist(0, 0, this.#previewWidth, this.#previewHeight);
+
+                this.#clampZoom();
+                this.#clampOffset();
+                this.#updatePreview();
+
+                $.triggerEvent(this.node, 'update.ui.imagecrop');
+            };
+
+            const upEvent = (e) => {
                 if (e.touches.length === 1) {
                     // Resume panning from the remaining finger's position after a pinch.
                     lastPos = getPosition(e);
                 }
+            };
+
+            const dragEvent = $.mouseDragFactory(downEvent, moveEvent, upEvent, { touches: 2 });
+
+            $.addEvent(this.#container, 'touchstart.ui.imagecrop', dragEvent);
+
+            $.addEvent(this.#container, 'wheel.ui.imagecrop', (e) => {
+                if (!this.node || !this.#img || this.#cancelLoad) {
+                    return;
+                }
+
+                e.preventDefault();
+
+                if (e.deltaY > 0) {
+                    this.#zoom -= this.options.zoomAmount;
+                } else if (e.deltaY < 0) {
+                    this.#zoom += this.options.zoomAmount;
+                }
+
+                this.#clampZoom();
+                this.#clampOffset();
+                this.#updatePreview();
+
+                $.triggerEvent(this.node, 'update.ui.imagecrop');
             });
         }
-    }
-
-    /**
-     * Attaches resize events.
-     */
-    #eventsResize() {
-        let lastPos;
-        let image;
-
-        const downEvent = (e) => {
-            if (e.button || !this.node || !this.#img || this.#cancelLoad) {
-                return false;
-            }
-
-            e.stopPropagation();
-
-            image = this.#img;
-            lastPos = getPosition(e);
-        };
-
-        const moveEvent = (e) => {
-            if (!this.node || this.#img !== image || this.#cancelLoad) {
-                return;
-            }
-
-            const newPos = getPosition(e);
-            const width = this.#previewWidth + newPos.x - lastPos.x;
-            const height = this.#previewHeight + newPos.y - lastPos.y;
-
-            lastPos = newPos;
-
-            this.#resizePreview(width, height);
-            this.#updatePreview();
-
-            $.triggerEvent(this.node, 'update.ui.imagecrop');
-        };
-
-        const dragEvent = $.mouseDragFactory(downEvent, moveEvent);
-
-        $.addEvent(this.#resize, 'mousedown.ui.imagecrop', dragEvent);
-    }
-
-    /**
-     * Attaches zoom events.
-     * @param {(event: TouchEvent) => void} upEvent The pinch end callback.
-     */
-    #eventsZoom(upEvent) {
-        let lastDist;
-        let image;
-
-        const downEvent = (e) => {
-            if (!this.node || !this.#img || this.#cancelLoad) {
-                return false;
-            }
-
-            image = this.#img;
-            lastDist = getTouchDistance(e);
-        };
-
-        const moveEvent = (e) => {
-            if (!this.node || this.#img !== image || this.#cancelLoad) {
-                return;
-            }
-
-            const newDist = getTouchDistance(e);
-            const diff = newDist - lastDist;
-
-            lastDist = newDist;
-
-            this.#zoom += diff / $._dist(0, 0, this.#previewWidth, this.#previewHeight);
-
-            this.#clampZoom();
-            this.#clampOffset();
-            this.#updatePreview();
-
-            $.triggerEvent(this.node, 'update.ui.imagecrop');
-        };
-
-        const dragEvent = $.mouseDragFactory(downEvent, moveEvent, upEvent, { touches: 2 });
-
-        $.addEvent(this.#container, 'touchstart.ui.imagecrop', dragEvent);
-
-        $.addEvent(this.#container, 'wheel.ui.imagecrop', (e) => {
-            if (!this.node || !this.#img || this.#cancelLoad) {
-                return;
-            }
-
-            e.preventDefault();
-
-            if (e.deltaY > 0) {
-                this.#zoom -= this.options.zoomAmount;
-            } else if (e.deltaY < 0) {
-                this.#zoom += this.options.zoomAmount;
-            }
-
-            this.#clampZoom();
-            this.#clampOffset();
-            this.#updatePreview();
-
-            $.triggerEvent(this.node, 'update.ui.imagecrop');
-        });
     }
 
     /**
