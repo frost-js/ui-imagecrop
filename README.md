@@ -32,6 +32,8 @@ Install ImageCrop with its Frost UI v4 and fQuery v5 peers:
 npm i @fr0st/ui-imagecrop @fr0st/ui @fr0st/query
 ```
 
+The package root resolves to the compiled ESM bundle. Import the Frost UI stylesheet and the default component export:
+
 ```js
 import '@fr0st/ui/dist/frost-ui.min.css';
 import ImageCrop from '@fr0st/ui-imagecrop';
@@ -39,27 +41,30 @@ import ImageCrop from '@fr0st/ui-imagecrop';
 const crop = ImageCrop.init(document.querySelector('#crop'));
 ```
 
-The package root resolves to the compiled ESM bundle. The `dist/*` and `src/*` subpaths are also exported. UI and fQuery remain external so the component shares the application's instances. Initialize the component in a browser; server-rendered applications should load it on the client.
+`@fr0st/ui` and `@fr0st/query` are peer dependencies so the component shares the application's UI and fQuery instances. The package root, `dist/*`, and `src/*` are available through package exports.
+
+ImageCrop requires a browser DOM and browser file and canvas APIs. Server-rendered applications should load the component on the client.
 
 ### Browser (ESM)
 
-Map UI, fQuery, and their core dependency when loading ESM directly:
+The ESM bundle imports `@fr0st/ui` and `@fr0st/query`. Frost UI and fQuery also require `@fr0st/core`, so map all three dependencies when loading the bundle directly in a browser:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.min.css">
-<div id="crop"></div>
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui.min.css">
 
 <script type="importmap">
 {
     "imports": {
-        "@fr0st/core": "https://cdn.jsdelivr.net/npm/@fr0st/core@4/dist/frost-core.esm.min.js",
-        "@fr0st/query": "https://cdn.jsdelivr.net/npm/@fr0st/query@5/dist/fquery.esm.min.js",
-        "@fr0st/ui": "https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.esm.min.js"
+        "@fr0st/core": "https://cdn.jsdelivr.net/npm/@fr0st/core@latest/dist/frost-core.esm.min.js",
+        "@fr0st/query": "https://cdn.jsdelivr.net/npm/@fr0st/query@latest/dist/fquery.esm.min.js",
+        "@fr0st/ui": "https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui.esm.min.js"
     }
 }
 </script>
 <script type="module">
-    import ImageCrop from 'https://cdn.jsdelivr.net/npm/@fr0st/ui-imagecrop@3/dist/frost-ui-imagecrop.esm.min.js';
+    import ImageCrop from 'https://cdn.jsdelivr.net/npm/@fr0st/ui-imagecrop@latest/dist/frost-ui-imagecrop.esm.min.js';
 
     const crop = ImageCrop.init(document.querySelector('#crop'));
 </script>
@@ -67,20 +72,23 @@ Map UI, fQuery, and their core dependency when loading ESM directly:
 
 ### Browser (UMD)
 
-Load UI's all-in-one bundle first. It supplies both `UI` and `fQuery`:
+Load Frost UI's all-in-one bundle before ImageCrop. The UI bundle supplies both the `UI` and `fQuery` globals expected by the component:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.min.css">
-<div id="crop"></div>
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui.min.css">
 
-<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui-bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui-imagecrop@3/dist/frost-ui-imagecrop.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui-bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui-imagecrop@latest/dist/frost-ui-imagecrop.min.js"></script>
 <script>
     const crop = UI.ImageCrop.init(document.querySelector('#crop'));
 </script>
 ```
 
-The UMD build extends the existing `globalThis.UI` object. Do not load fQuery separately when using `frost-ui-bundle.js`. With UI's non-bundled build, load core, fQuery, UI, then ImageCrop in dependency order.
+The UMD bundle adds `ImageCrop` to the existing `globalThis.UI` object. It expects `globalThis.UI` and `globalThis.fQuery` to exist before it loads. If the non-bundled Frost UI build is used instead, load fQuery, Frost UI, and ImageCrop in that order.
+
+Do not load the separate fQuery script when using `frost-ui-bundle.js` or `frost-ui-bundle.min.js`.
 
 ## Usage
 
@@ -153,12 +161,14 @@ Resolution order is defaults, the host's `data-ui-*` attributes, then explicit o
 | `zoomAmount` | `number` | `0.1` | Scale increment for wheel zoom. |
 | `circle` | `boolean` | `false` | Round the preview and apply a circular export mask. |
 | `exifOrientation` | `boolean` | `true` | Apply JPEG EXIF orientation. |
-| `zoom` | `boolean` | `true` | Enable programmatic, wheel, and pinch zoom. |
+| `zoom` | `boolean` | `true` | Enable `setZoom()`, wheel/pinch zoom, and zoom adjustments through `setBounds()`. |
 | `resize` | `boolean` | `false` | Show a mouse-operated viewport resize handle. |
 | `rotate` | `boolean` | `true` | Enable programmatic rotation. |
 | `enforceBoundary` | `boolean` | `true` | Keep the viewport covered by the image. |
 
 Dimensions and zoom settings must be finite and positive; optional limits also accept `null`. `minZoom` must not exceed `maxZoom`. Loading a new image restores the configured initial viewport dimensions.
+
+With `zoom: false`, panning remains available, including when returning to one finger after a two-finger gesture. Loading still sets the initial scale, and boundary enforcement can adjust it when loading or rotating.
 
 ```html
 <div id="avatar-crop" data-ui-circle="true" data-ui-preview-width="240" data-ui-preview-height="240"></div>
@@ -187,7 +197,7 @@ Data attributes configure an instance; they do not initialize one automatically.
 | `setZoom(zoom)` | `void` | Set and clamp the scale to the configured limits. |
 | `dispose()` | `void` | Cancel loading, remove generated markup and registered state. Repeatable. |
 
-`load()` accepts `{ x, y, zoom }`. Omitted offsets center the image; omitted zoom fits it and then enforces the configured boundaries and limits. `x` and `y` retain the legacy offset convention: distances from the right and bottom of the unrotated source to the crop center, before EXIF rotation. Prefer `setBounds()` after loading for ordinary left/top crop coordinates.
+`load()` accepts `{ x, y, zoom }`. Omitted offsets center the image; omitted zoom fits the oriented image into the viewport and then enforces the configured boundaries and limits. Explicit zoom must be finite and positive; offsets must be finite. These values also accept `null` for automatic sizing or centering. `x` and `y` retain the legacy offset convention: distances from the right and bottom of the unrotated source to the crop center, before EXIF rotation. Prefer `setBounds()` after loading for ordinary left/top crop coordinates.
 
 Bounds must be finite with positive width and height. With `resize: true`, `setBounds()` changes viewport dimensions at the current scale. Otherwise, when zoom is enabled, it scales to cover the viewport. If both are disabled, it only centers the requested region. Boundaries and limits may change the resulting region; call `getBounds()` for the actual crop.
 
@@ -211,7 +221,7 @@ const canvas = await crop.result({ type: 'canvas', size: 'original' });
 const avatar = await crop.result({ type: 'blob', circle: true, size: { width: 256, height: 256 } });
 ```
 
-`original` uses source-pixel dimensions for the current crop, not the entire original file. Explicit width and height can stretch the result. Output dimensions are floored to whole pixels with a minimum of one pixel, after applying the component's `maxWidth`/`maxHeight` limits.
+`original` uses source-pixel dimensions for the current crop, not the entire original file. Explicit width and height must be finite and positive; supplying both can stretch the result. Output dimensions are floored to whole pixels with a minimum of one pixel, after applying the component's `maxWidth`/`maxHeight` limits. If the canvas cannot preserve those final dimensions, `result()` rejects with a `RangeError`, including for `type: 'canvas'`.
 
 A rectangular circular result uses a centered circle fitting the smaller dimension. PNG and canvas preserve transparency; provide a background for predictable JPEG output. Unsupported MIME subtypes use the browser's PNG fallback. Unsupported result types or invalid options reject; Blob encoding also rejects if the browser returns `null`.
 
@@ -266,37 +276,25 @@ The viewport wrapper and canvas stay anchored to the physical left/top, and the 
 
 The viewport supports pointer interaction but does not provide built-in keyboard controls or canvas descriptions. Applications should supply labeled file inputs, status messages, and keyboard-operable buttons or numeric inputs using `setBounds()`, `setZoom()`, and `rotate()`. The demo includes these alternatives. Do not treat the resize handle as an accessible form control.
 
-## Migrating from 2.x
-
-- Requires Frost UI 4 and fQuery 5.
-- Package-root imports resolve to the built ESM bundle; UMD remains under `dist/`.
-- Component internals use private fields and methods. Use the documented API instead of prototype composition or underscore properties.
-- Loading has explicit rejection and cancellation behavior; always handle its Promise.
-- Invalid geometry and export options now reject or throw. Rotation accepts only finite multiples of 90.
-- EXIF is applied exactly once, reflections reset on replacement, and failed replacements preserve the previous image.
-- Canvas dimensions are numeric, and rectangular circular exports fit both dimensions.
-
 ## Browser support
 
 Tested with Chromium, Firefox, and WebKit through Playwright. Builds use Vite's `baseline-widely-available` target; the component also relies on the browser APIs required by Frost UI 4, FileReader, Blob/object URLs, and canvas image decoding/encoding.
 
 ## Development
 
-Use Node.js matching `^20.19.0 || ^22.13.0 || >=24`:
+Use Node.js matching `^20.19.0 || ^22.13.0 || >=24`. Install dependencies with `npm ci`, then install Playwright browsers with `npx playwright install --with-deps`.
 
 ```bash
-npm ci
-npx playwright install --with-deps
-npm run lint
 npm test
-npm run test:coverage
+npm run lint
+npm run build
 ```
 
-`npm test` builds ESM and UMD bundles, then runs all three browser suites. `npm run test:browser`, `npm run test:headed`, and `npm run test:ui` use existing bundles; rebuild after source changes. Chromium coverage writes reports to `coverage/`, including `coverage/lcov.info`.
+`npm test` rebuilds JavaScript, then runs the Playwright suite in Chromium, Firefox, and WebKit. `npm run test:browser` runs the suite against the existing bundles, so rebuild after changing source files.
 
-CI follows the UI projects: Chromium on Node 20/22/24, Firefox and WebKit on Node 24, lint/build checks, tracked-bundle verification, and `npm pack --dry-run`. The Node 24 Chromium job uploads coverage using Codecov OIDC, with a 95% project target and 5% threshold.
+After building, `npm run test:coverage` runs Chromium tests and writes coverage reports to `coverage/`.
 
-The release-triggered publish workflow validates the package before `npm publish --provenance`. Configure Codecov for the repository and npm trusted publishing for this repository's `publish.yml` workflow before relying on those external services. Repository links retain the current `elusivecodes/FrostUI-ImageCrop` remote identity.
+`npm run test:headed` and `npm run test:ui` also use the existing bundles and open headed browsers or the Playwright UI.
 
 ## License
 
