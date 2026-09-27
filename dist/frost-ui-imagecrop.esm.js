@@ -1,46 +1,170 @@
 import { BaseComponent, getPosition, getTouchPositions, initComponent } from "@fr0st/ui";
 import $ from "@fr0st/query";
 
+//#region src/helpers.js
+/**
+* Reads JPEG EXIF orientation, optionally resetting its tag before decoding.
+* @param {ArrayBuffer} data The image data. Resetting changes this buffer only.
+* @param {boolean} [reset=false] Whether to replace the orientation tag with 1.
+* @returns {number} The orientation, or 1 when the image has no orientation tag.
+*/
+function getOrientation(data, reset = false) {
+	const view = new DataView(data);
+	if (view.byteLength < 2) throw new Error("Invalid image data.");
+	if (view.getUint16(0) !== 65496) return 1;
+	let offset = 2;
+	while (offset < view.byteLength) {
+		if (offset + 4 > view.byteLength) throw new Error("Truncated JPEG metadata.");
+		const marker = view.getUint16(offset);
+		if (marker === 65498 || marker === 65497) break;
+		const length = view.getUint16(offset + 2);
+		const end = offset + 2 + length;
+		if ((marker & 65280) !== 65280 || length < 2 || end > view.byteLength) throw new Error("Invalid JPEG metadata.");
+		const start = offset + 4;
+		offset = end;
+		if (marker !== 65505 || length < 8 || view.getUint32(start) !== 1165519206 || view.getUint16(start + 4) !== 0) continue;
+		const tiff = start + 6;
+		if (tiff + 8 > end) throw new Error("Truncated EXIF metadata.");
+		const order = view.getUint16(tiff);
+		const little = order === 18761;
+		if (order !== 18761 && order !== 19789 || view.getUint16(tiff + 2, little) !== 42) throw new Error("Invalid EXIF byte order or header.");
+		const directoryOffset = view.getUint32(tiff + 4, little);
+		const directory = tiff + directoryOffset;
+		if (directoryOffset < 8 || directory + 2 > end) throw new Error("Invalid EXIF directory offset.");
+		const count = view.getUint16(directory, little);
+		if (directory + 2 + count * 12 > end) throw new Error("Truncated EXIF directory.");
+		for (let tag = directory + 2; tag < directory + 2 + count * 12; tag += 12) {
+			if (view.getUint16(tag, little) !== 274) continue;
+			if (view.getUint16(tag + 2, little) !== 3 || view.getUint32(tag + 4, little) !== 1) throw new Error("Invalid EXIF orientation tag.");
+			const orientation = view.getUint16(tag + 8, little);
+			if (orientation < 1 || orientation > 8) throw new Error("Invalid EXIF orientation.");
+			if (reset) view.setUint16(tag + 8, 1, little);
+			return orientation;
+		}
+	}
+	return 1;
+}
+
+//#endregion
 //#region src/image-crop.js
 /**
-* ImageCrop Class
-* @class
+* @typedef {object} ImageCropOptions
+* @property {number} [previewWidth=300] The initial viewport width in pixels.
+* @property {number} [previewHeight=300] The initial viewport height in pixels.
+* @property {number|null} [maxPreviewWidth=null] The maximum viewport width.
+* @property {number|null} [maxPreviewHeight=null] The maximum viewport height.
+* @property {number|null} [maxWidth=null] The maximum exported image width.
+* @property {number|null} [maxHeight=null] The maximum exported image height.
+* @property {number} [minZoom=0.1] The minimum image scale.
+* @property {number} [maxZoom=10] The maximum image scale, unless covering the viewport requires more.
+* @property {number} [zoomAmount=0.1] The wheel zoom increment.
+* @property {boolean} [circle=false] Whether to display and export a circular crop.
+* @property {boolean} [exifOrientation=true] Whether to apply the file's EXIF orientation.
+* @property {boolean} [zoom=true] Whether to allow zooming.
+* @property {boolean} [resize=false] Whether to allow resizing the viewport.
+* @property {boolean} [rotate=true] Whether to allow rotation.
+* @property {boolean} [enforceBoundary=true] Whether the image must cover the viewport.
+*/
+/**
+* @typedef {object} ImageCropLoadOptions
+* @property {number|null} [x=null] The initial horizontal offset in source pixels.
+* @property {number|null} [y=null] The initial vertical offset in source pixels.
+* @property {number|null} [zoom=null] The initial scale, or automatic sizing when omitted.
+*/
+/**
+* @typedef {object} ImageCropResultOptions
+* @property {'base64'|'blob'|'canvas'} [type='base64'] The result representation.
+* @property {string} [format='png'] The image MIME subtype, such as 'png' or 'jpeg'.
+* @property {'viewport'|'original'|{width?: number, height?: number}} [size='viewport'] The output dimensions.
+* @property {number} [quality=1] The encoding quality between zero and one.
+* @property {boolean} [circle=false] Whether to clip the output to a circle.
+* @property {string|null} [background=null] The output background color.
+*/
+/**
+* Controls an image cropping viewport.
+* @augments {BaseComponent<ImageCropOptions>}
 */
 var ImageCrop = class extends BaseComponent {
+	static classes = {
+		circle: "rounded-circle",
+		container: "position-relative w-100 h-100 overflow-hidden border",
+		outerContainer: "position-relative",
+		preview: "position-absolute top-0 left-0",
+		resize: "position-absolute top-100 start-100"
+	};
+	/** @type {ImageCropOptions} */
+	static defaults = {
+		previewWidth: 300,
+		previewHeight: 300,
+		maxPreviewWidth: null,
+		maxPreviewHeight: null,
+		maxWidth: null,
+		maxHeight: null,
+		minZoom: .1,
+		maxZoom: 10,
+		zoomAmount: .1,
+		circle: false,
+		exifOrientation: true,
+		zoom: true,
+		resize: false,
+		rotate: true,
+		enforceBoundary: true
+	};
+	#cancelLoad;
+	#canvas;
+	#canvasHeight;
+	#canvasWidth;
+	#container;
+	#context;
+	#flipped;
+	#img;
+	#offsetX;
+	#offsetY;
+	#outerContainer;
+	#previewHeight;
+	#previewWidth;
+	#resize;
+	#rotation;
+	#zoom;
 	/**
-	* New ImageCrop constructor.
+	* Creates an ImageCrop.
 	* @param {HTMLElement} node The input node.
-	* @param {object} [options] The options to create the ImageCrop with.
+	* @param {ImageCropOptions} [options] The ImageCrop options.
 	*/
 	constructor(node, options) {
 		super(node, options);
-		this._render();
-		this._events();
-		this._img = new Image();
-		this._reader = new FileReader();
+		try {
+			this.#validateOptions();
+			this.#render();
+			this.#events();
+		} catch (error) {
+			this.dispose();
+			throw error;
+		}
 	}
-	/**
-	* Dispose the ImageCrop.
-	*/
+	/** @inheritdoc */
 	dispose() {
-		$.remove(this._outerContainer);
-		this._outerContainer = null;
-		this._container = null;
-		this._resize = null;
-		this._canvas = null;
-		this._context = null;
-		this._img = null;
+		if (!this.node) return;
+		this.#cancelLoad?.();
+		$.remove(this.#outerContainer);
+		this.#outerContainer = null;
+		this.#container = null;
+		this.#resize = null;
+		this.#canvas = null;
+		this.#context = null;
+		this.#img = null;
 		super.dispose();
 	}
 	/**
 	* Get the image bounds.
-	* @returns {Array} The image bounds.
+	* @returns {[number, number, number, number]} The left, top, right, and bottom crop coordinates.
 	*/
 	getBounds() {
-		const width = this._previewWidth / this._zoom;
-		const height = this._previewHeight / this._zoom;
-		const x = this._canvasWidth - this._offsetX - width / 2;
-		const y = this._canvasHeight - this._offsetY - height / 2;
+		this.#requireImage();
+		const width = this.#previewWidth / this.#zoom;
+		const height = this.#previewHeight / this.#zoom;
+		const x = this.#canvasWidth - this.#offsetX - width / 2;
+		const y = this.#canvasHeight - this.#offsetY - height / 2;
 		return [
 			x,
 			y,
@@ -53,19 +177,200 @@ var ImageCrop = class extends BaseComponent {
 	* @returns {number} The zoom level.
 	*/
 	getZoom() {
-		return this._zoom;
+		this.#requireImage();
+		return this.#zoom;
+	}
+	/**
+	* Loads an image, aborting any previous pending load.
+	* @param {Blob} file The image file.
+	* @param {ImageCropLoadOptions} [options] The initial image position and scale.
+	* @returns {Promise<void>} Resolves after rendering, or rejects on failure or cancellation.
+	*/
+	async load(file, { x = null, y = null, zoom = null } = {}) {
+		if (!this.node) throw new Error("ImageCrop has been disposed.");
+		if (!(file instanceof Blob)) throw new TypeError("The image must be a Blob.");
+		if ([x, y].some((value) => value !== null && !Number.isFinite(value)) || zoom !== null && (!Number.isFinite(zoom) || zoom <= 0)) throw new RangeError("Image offsets must be finite and zoom must be positive.");
+		this.#cancelLoad?.();
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			const image = new Image();
+			let url;
+			let orientation;
+			const cleanup = () => {
+				reader.onload = null;
+				reader.onerror = null;
+				reader.onabort = null;
+				image.onload = null;
+				image.onerror = null;
+				if (reader.readyState === FileReader.LOADING) reader.abort();
+				if (url) URL.revokeObjectURL(url);
+				image.removeAttribute("src");
+				this.#cancelLoad = null;
+			};
+			const fail = (error) => {
+				cleanup();
+				reject(error);
+			};
+			this.#cancelLoad = () => fail(new DOMException("Image loading was aborted.", "AbortError"));
+			reader.onerror = () => fail(reader.error || /* @__PURE__ */ new Error("Could not read the image."));
+			reader.onabort = this.#cancelLoad;
+			image.onerror = () => fail(/* @__PURE__ */ new Error("Could not decode the image."));
+			image.onload = () => {
+				if (!image.naturalWidth || !image.naturalHeight) {
+					fail(/* @__PURE__ */ new Error("Image dimensions must be positive."));
+					return;
+				}
+				this.#img = image;
+				this.#rotation = 0;
+				this.#flipped = [
+					2,
+					4,
+					5,
+					7
+				].includes(orientation);
+				this.#previewWidth = Math.min(this.options.previewWidth, this.options.maxPreviewWidth ?? Infinity);
+				this.#previewHeight = Math.min(this.options.previewHeight, this.options.maxPreviewHeight ?? Infinity);
+				this.#canvasWidth = image.naturalWidth;
+				this.#canvasHeight = image.naturalHeight;
+				this.#offsetX = x ?? this.#canvasWidth / 2;
+				this.#offsetY = y ?? this.#canvasHeight / 2;
+				this.#zoom = zoom ?? Math.min(this.#previewWidth / this.#canvasWidth, this.#previewHeight / this.#canvasHeight);
+				this.#updateRotation({
+					3: 180,
+					4: 180,
+					5: 270,
+					6: 90,
+					7: 90,
+					8: 270
+				}[orientation] ?? 0);
+				this.#clampZoom();
+				this.#clampOffset();
+				$.setStyle(this.#outerContainer, {
+					width: `${this.#previewWidth}px`,
+					height: `${this.#previewHeight}px`
+				});
+				this.#updatePreviewCanvas();
+				this.#updatePreview();
+				reader.onload = null;
+				reader.onerror = null;
+				reader.onabort = null;
+				image.onload = null;
+				image.onerror = null;
+				URL.revokeObjectURL(url);
+				this.#cancelLoad = null;
+				resolve();
+			};
+			reader.onload = () => {
+				try {
+					orientation = getOrientation(reader.result, true);
+					if (!this.options.exifOrientation) orientation = 1;
+					url = URL.createObjectURL(new Blob([reader.result], { type: file.type }));
+					image.src = url;
+				} catch (error) {
+					fail(error);
+				}
+			};
+			try {
+				reader.readAsArrayBuffer(file);
+			} catch (error) {
+				fail(error);
+			}
+		});
+	}
+	/**
+	* Renders the current crop.
+	* @param {ImageCropResultOptions} [options] The output options.
+	* @returns {Promise<string|Blob|HTMLCanvasElement>} The encoded image or output canvas.
+	*/
+	async result(options = {}) {
+		this.#requireImage();
+		const { type = "base64", format = "png", size = "viewport", quality = 1, circle = false, background = null } = options;
+		if (![
+			"base64",
+			"blob",
+			"canvas"
+		].includes(type)) throw new TypeError("Result type must be base64, blob, or canvas.");
+		if (!Number.isFinite(quality) || quality < 0 || quality > 1) throw new RangeError("Quality must be between zero and one.");
+		if (size !== "viewport" && size !== "original") {
+			if (!$._isObject(size) || size.width === void 0 && size.height === void 0) throw new TypeError("Size must be viewport, original, or image dimensions.");
+			for (const value of [size.width, size.height]) if (value !== void 0 && (!Number.isFinite(value) || value <= 0)) throw new RangeError("Output dimensions must be positive finite numbers.");
+		}
+		const canvas = $.create("canvas");
+		const context = canvas.getContext("2d");
+		let width = this.#previewWidth;
+		let height = this.#previewHeight;
+		if (size === "original") {
+			width /= this.#zoom;
+			height /= this.#zoom;
+		} else if ($._isObject(size)) {
+			if (size.width && size.height) {
+				width = size.width;
+				height = size.height;
+			} else {
+				const ratio = width / height;
+				if (size.width) {
+					width = size.width;
+					height = width / ratio;
+				} else if (size.height) {
+					height = size.height;
+					width = height * ratio;
+				}
+			}
+		}
+		const ratio = width / height;
+		if (this.options.maxWidth) {
+			width = Math.min(width, this.options.maxWidth);
+			height = width / ratio;
+		}
+		if (this.options.maxHeight) {
+			height = Math.min(height, this.options.maxHeight);
+			width = height * ratio;
+		}
+		width = Math.max(1, Math.floor(width));
+		height = Math.max(1, Math.floor(height));
+		$.setAttribute(canvas, {
+			width,
+			height
+		});
+		const [x1, y1, x2, y2] = this.getBounds();
+		context.drawImage(this.#canvas, x1, y1, x2 - x1, y2 - y1, 0, 0, width, height);
+		if (circle || this.options.circle) {
+			context.globalCompositeOperation = "destination-in";
+			context.beginPath();
+			context.arc(width / 2, height / 2, Math.min(width, height) / 2, 0, Math.PI * 2);
+			context.closePath();
+			context.fill();
+		}
+		if (background) {
+			context.globalCompositeOperation = "destination-over";
+			context.fillStyle = background;
+			context.fillRect(0, 0, width, height);
+			context.fillStyle = "#000";
+		}
+		context.globalCompositeOperation = "source-over";
+		if (type === "canvas") return canvas;
+		if (type === "base64") return canvas.toDataURL(`image/${format}`, quality);
+		return new Promise((resolve, reject) => {
+			canvas.toBlob((blob) => {
+				if (blob) resolve(blob);
+				else reject(/* @__PURE__ */ new Error("Could not encode the image."));
+			}, `image/${format}`, quality);
+		});
 	}
 	/**
 	* Rotate the image (in degrees).
-	* @param {number} [amount=90] The rotation amount (in degrees).
+	* @param {number} [amount=90] The clockwise rotation in multiples of 90 degrees.
 	*/
 	rotate(amount = 90) {
-		if (!this._options.rotate || amount === 0) return;
-		this._updateRotation(amount);
-		this._clampZoom();
-		this._updatePreviewCanvas();
-		this._updatePreview();
-		$.triggerEvent(this._node, "update.ui.imagecrop");
+		this.#requireImage();
+		if (!Number.isFinite(amount) || amount % 90 !== 0) throw new RangeError("Rotation must be a finite multiple of 90 degrees.");
+		if (!this.options.rotate || amount === 0) return;
+		this.#updateRotation(amount);
+		this.#clampZoom();
+		this.#clampOffset();
+		this.#updatePreviewCanvas();
+		this.#updatePreview();
+		$.triggerEvent(this.node, "update.ui.imagecrop");
 	}
 	/**
 	* Set the image bounds.
@@ -75,473 +380,277 @@ var ImageCrop = class extends BaseComponent {
 	* @param {number} y2 The second image y offset.
 	*/
 	setBounds(x1, y1, x2, y2) {
+		this.#requireImage();
 		const width = x2 - x1;
 		const height = y2 - y1;
-		if (this._options.resize) this._resizePreview(width * this._zoom, height * this._zoom);
-		else if (this._options.zoom) this._zoom = Math.max(this._previewWidth / width, this._previewHeight / height);
-		this._offsetX = this._canvasWidth - (x1 + width / 2);
-		this._offsetY = this._canvasHeight - (y1 + height / 2);
-		this._clampZoom();
-		this._clampOffset();
-		this._updatePreview();
-		$.triggerEvent(this._node, "update.ui.imagecrop");
+		if (![
+			x1,
+			y1,
+			x2,
+			y2,
+			width,
+			height
+		].every(Number.isFinite) || width <= 0 || height <= 0) throw new RangeError("Bounds must be finite and have a positive width and height.");
+		if (this.options.resize) this.#resizePreview(width * this.#zoom, height * this.#zoom);
+		else if (this.options.zoom) this.#zoom = Math.max(this.#previewWidth / width, this.#previewHeight / height);
+		this.#offsetX = this.#canvasWidth - (x1 + width / 2);
+		this.#offsetY = this.#canvasHeight - (y1 + height / 2);
+		this.#clampZoom();
+		this.#clampOffset();
+		this.#updatePreview();
+		$.triggerEvent(this.node, "update.ui.imagecrop");
 	}
 	/**
 	* Set the image zoom level.
 	* @param {number} zoom The image zoom level.
 	*/
 	setZoom(zoom) {
-		if (!this._options.zoom || zoom === this._zoom) return;
-		this._zoom = zoom;
-		this._clampZoom();
-		this._clampOffset();
-		this._updatePreview();
-		$.triggerEvent(this._node, "update.ui.imagecrop");
+		this.#requireImage();
+		if (!Number.isFinite(zoom) || zoom <= 0) throw new RangeError("Zoom must be a positive finite number.");
+		if (!this.options.zoom || zoom === this.#zoom) return;
+		this.#zoom = zoom;
+		this.#clampZoom();
+		this.#clampOffset();
+		this.#updatePreview();
+		$.triggerEvent(this.node, "update.ui.imagecrop");
 	}
-};
-
-//#endregion
-//#region src/prototype/events.js
-/**
-* Attach events for the ImageCrop.
-*/
-function _events() {
-	let lastPos;
-	const downEvent = (e) => {
-		if (e.button) return false;
-		lastPos = getPosition(e);
-	};
-	const moveEvent = (e) => {
-		const newPos = getPosition(e);
-		this._offsetX += (newPos.x - lastPos.x) / this._zoom;
-		this._offsetY += (newPos.y - lastPos.y) / this._zoom;
-		lastPos = newPos;
-		this._clampOffset();
-		this._updatePreview();
-		$.triggerEvent(this._node, "update.ui.imagecrop");
-	};
-	const dragEvent = $.mouseDragFactory(downEvent, moveEvent);
-	$.addEvent(this._container, "mousedown.ui.imagecrop touchstart.ui.imagecrop", dragEvent);
-	if (this._options.resize) this._eventsResize();
-	if (this._options.zoom) this._eventsZoom();
-}
-/**
-* Attach resize events.
-*/
-function _eventsResize() {
-	let lastPos;
-	const downEvent = (e) => {
-		e.stopPropagation();
-		lastPos = getPosition(e);
-	};
-	const moveEvent = (e) => {
-		const newPos = getPosition(e);
-		this._previewWidth += newPos.x - lastPos.x;
-		this._previewHeight += newPos.y - lastPos.y;
-		lastPos = newPos;
-		this._resizePreview(this._previewWidth, this._previewHeight);
-		this._updatePreview();
-		$.triggerEvent(this._node, "update.ui.imagecrop");
-	};
-	const dragEvent = $.mouseDragFactory(downEvent, moveEvent);
-	$.addEvent(this._resize, "mousedown.ui.imagecrop", dragEvent);
-}
-/**
-* Attach zoom events.
-*/
-function _eventsZoom() {
-	let lastDist;
-	const getTouchDistance = (e) => {
-		const touches = getTouchPositions(e);
-		return $._dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
-	};
-	const downEvent = (e) => {
-		lastDist = getTouchDistance(e);
-	};
-	const moveEvent = (e) => {
-		const newDist = getTouchDistance(e);
-		const diff = newDist - lastDist;
-		lastDist = newDist;
-		this._zoom += diff / $._dist(0, 0, this._previewWidth, this._previewHeight);
-		this._clampZoom();
-		this._clampOffset();
-		this._updatePreview();
-		$.triggerEvent(this._node, "update.ui.imagecrop");
-	};
-	const dragEvent = $.mouseDragFactory(downEvent, moveEvent, null, { touches: 2 });
-	$.addEvent(this._container, "touchstart.ui.imagecrop", dragEvent);
-	$.addEvent(this._container, "wheel.ui.imagecrop", (e) => {
-		e.preventDefault();
-		if (e.deltaY > 0) this._zoom -= this._options.zoomAmount;
-		else if (e.deltaY < 0) this._zoom += this._options.zoomAmount;
-		this._clampZoom();
-		this._clampOffset();
-		this._updatePreview();
-		$.triggerEvent(this._node, "update.ui.imagecrop");
-	});
-}
-
-//#endregion
-//#region src/prototype/helpers.js
-/**
-* Clamp the image offset.
-*/
-function _clampOffset() {
-	if (!this._options.enforceBoundary) return;
-	const minX = this._previewWidth / (this._canvasWidth * this._zoom) * this._canvasWidth / 2;
-	const minY = this._previewHeight / (this._canvasHeight * this._zoom) * this._canvasHeight / 2;
-	this._offsetX = $._clamp(this._offsetX, minX, this._canvasWidth - minX);
-	this._offsetY = $._clamp(this._offsetY, minY, this._canvasHeight - minY);
-}
-/**
-* Clamp the image zoom level.
-*/
-function _clampZoom() {
-	this._zoom = $._clamp(this._zoom, this._options.minZoom, this._options.maxZoom);
-	if (!this._options.enforceBoundary) return;
-	const minZoom = Math.max(this._previewWidth / this._canvasWidth, this._previewHeight / this._canvasHeight);
-	this._zoom = Math.max(minZoom, this._zoom);
-}
-/**
-* Resize the image preview.
-* @param {number} width The preview width.
-* @param {number} height The preview height.
-*/
-function _resizePreview(width, height) {
-	if (this._options.maxPreviewWidth) width = Math.min(width, this._options.maxPreviewWidth);
-	if (this._options.maxPreviewHeight) height = Math.min(height, this._options.maxPreviewHeight);
-	if (this._options.enforceBoundary) {
-		this._previewWidth = Math.min(width, this._canvasWidth * this._zoom);
-		this._previewHeight = Math.min(height, this._canvasHeight * this._zoom);
-		this._clampOffset();
-	} else {
-		this._offsetX += (width - this._previewWidth) / this._zoom / 2;
-		this._offsetY -= (height - this._previewHeight) / this._zoom / 2;
-		this._previewWidth = width;
-		this._previewHeight = height;
+	/**
+	* Clamp the image offset.
+	*/
+	#clampOffset() {
+		if (!this.options.enforceBoundary) return;
+		const minX = this.#previewWidth / (this.#canvasWidth * this.#zoom) * this.#canvasWidth / 2;
+		const minY = this.#previewHeight / (this.#canvasHeight * this.#zoom) * this.#canvasHeight / 2;
+		this.#offsetX = $._clamp(this.#offsetX, minX, this.#canvasWidth - minX);
+		this.#offsetY = $._clamp(this.#offsetY, minY, this.#canvasHeight - minY);
 	}
-	$.setStyle(this._outerContainer, {
-		width: `${this._previewWidth}px`,
-		height: `${this._previewHeight}px`
-	});
-}
-/**
-* Update the preview.
-*/
-function _updatePreview() {
-	const x = (-this._canvasWidth + this._offsetX) * this._zoom + this._previewWidth / 2;
-	const y = (-this._canvasHeight + this._offsetY) * this._zoom + this._previewHeight / 2;
-	$.setStyle(this._canvas, { transform: `translate3d(${x}px, ${y}px, 0) scale(${this._zoom})` });
-}
-/**
-* Update the preview canvas.
-*/
-function _updatePreviewCanvas() {
-	$.setAttribute(this._canvas, {
-		width: this._canvasWidth,
-		height: this._canvasHeight
-	});
-	this._context.clearRect(0, 0, this._canvasWidth, this._canvasHeight);
-	this._context.save();
-	this._context.translate(this._canvasWidth / 2, this._canvasHeight / 2);
-	this._context.rotate(this._rotation * Math.PI / 180);
-	if (this._flipped) this._context.scale(-1, 1);
-	this._context.drawImage(this._img, -this._img.width / 2, -this._img.height / 2, this._img.width, this._img.height);
-	this._context.restore();
-}
-/**
-* Adjust the rotation by an amount.
-* @param {number} amount The amount.
-*/
-function _updateRotation(amount) {
-	const rotation = (this._rotation + amount) % 360;
-	if (rotation % 180 === 0) {
-		this._canvasWidth = this._img.width;
-		this._canvasHeight = this._img.height;
-	} else {
-		this._canvasWidth = this._img.height;
-		this._canvasHeight = this._img.width;
+	/**
+	* Clamp the image zoom level.
+	*/
+	#clampZoom() {
+		this.#zoom = $._clamp(this.#zoom, this.options.minZoom, this.options.maxZoom);
+		if (!this.options.enforceBoundary) return;
+		const minZoom = Math.max(this.#previewWidth / this.#canvasWidth, this.#previewHeight / this.#canvasHeight);
+		this.#zoom = Math.max(minZoom, this.#zoom);
 	}
-	const newRotation = rotation >= this._rotation ? rotation : rotation + 360;
-	while (this._rotation < newRotation) {
-		const offsetX = this._offsetX;
-		const offsetY = this._offsetY;
-		if (this._rotation % 180 === 0) this._offsetX = this._img.height - offsetY;
-		else this._offsetX = this._img.width - offsetY;
-		this._offsetY = offsetX;
-		this._rotation += 90;
+	/**
+	* Attach events for the ImageCrop.
+	*/
+	#events() {
+		let lastPos;
+		let image;
+		const downEvent = (e) => {
+			if (e.button || !this.node || !this.#img || this.#cancelLoad) return false;
+			image = this.#img;
+			lastPos = getPosition(e);
+		};
+		const moveEvent = (e) => {
+			if (!this.node || this.#img !== image || this.#cancelLoad) return;
+			const newPos = getPosition(e);
+			this.#offsetX += (newPos.x - lastPos.x) / this.#zoom;
+			this.#offsetY += (newPos.y - lastPos.y) / this.#zoom;
+			lastPos = newPos;
+			this.#clampOffset();
+			this.#updatePreview();
+			$.triggerEvent(this.node, "update.ui.imagecrop");
+		};
+		const dragEvent = $.mouseDragFactory(downEvent, moveEvent);
+		$.addEvent(this.#container, "mousedown.ui.imagecrop touchstart.ui.imagecrop", dragEvent);
+		if (this.options.resize) this.#eventsResize();
+		if (this.options.zoom) this.#eventsZoom();
 	}
-	this._rotation %= 360;
-}
-
-//#endregion
-//#region src/helpers.js
-/**
-* Get the EXIF orientation.
-* @param {ArrayBuffer} data The file data.
-* @returns {number} The EXIF orientation.
-*/
-function getOrientation(data) {
-	const view = new DataView(data);
-	const getInt16 = (offset, littleEndian = false) => view.getUint16(offset, littleEndian);
-	const getInt32 = (offset, littleEndian = false) => view.getUint32(offset, littleEndian);
-	if (getInt16(0) != 65496) return -2;
-	let offset = 2;
-	while (offset < view.byteLength) {
-		if (getInt16(offset + 2) <= 8) return -1;
-		const marker = getInt16(offset);
-		offset += 2;
-		if ((marker & 65280) != 65280) break;
-		if (marker != 65505) {
-			offset += getInt16(offset);
-			continue;
-		}
-		offset += 2;
-		if (getInt32(offset) != 1165519206) return -1;
-		offset += 6;
-		const little = getInt16(offset) == 18761;
-		offset += getInt32(offset + 4, little);
-		const tags = getInt16(offset, little) * 12;
-		offset += 2;
-		for (let i = 0; i < tags; i += 12) if (getInt16(offset + i, little) == 274) return getInt16(offset + i + 8, little);
+	/**
+	* Attach resize events.
+	*/
+	#eventsResize() {
+		let lastPos;
+		let image;
+		const downEvent = (e) => {
+			if (e.button || !this.node || !this.#img || this.#cancelLoad) return false;
+			e.stopPropagation();
+			image = this.#img;
+			lastPos = getPosition(e);
+		};
+		const moveEvent = (e) => {
+			if (!this.node || this.#img !== image || this.#cancelLoad) return;
+			const newPos = getPosition(e);
+			const width = this.#previewWidth + newPos.x - lastPos.x;
+			const height = this.#previewHeight + newPos.y - lastPos.y;
+			lastPos = newPos;
+			this.#resizePreview(width, height);
+			this.#updatePreview();
+			$.triggerEvent(this.node, "update.ui.imagecrop");
+		};
+		const dragEvent = $.mouseDragFactory(downEvent, moveEvent);
+		$.addEvent(this.#resize, "mousedown.ui.imagecrop", dragEvent);
 	}
-	return -1;
-}
-
-//#endregion
-//#region src/prototype/load.js
-/**
-* Load a file.
-* @param {Blob} file The file.
-* @param {object} [options] Options for loading the file.
-* @param {number} [options.x] The initial x offset.
-* @param {number} [options.y] The initial y offset.
-* @param {number} [options.zoom] The initial zoom.
-* @returns {Promise} A promise that resolves when the image is loaded.
-*/
-function load(file, options = {}) {
-	const { x = null, y = null, zoom = null } = options;
-	this._rotation = 0;
-	this._offsetX = x;
-	this._offsetY = y;
-	this._zoom = zoom;
-	return new Promise((resolve, reject) => {
-		this._reader.onerror = reject;
-		this._img.onerror = reject;
-		this._img.onload = (_) => {
-			this._previewWidth = this._options.previewWidth;
-			this._previewHeight = this._options.previewHeight;
-			$.setStyle(this._outerContainer, {
-				width: `${this._previewWidth}px`,
-				height: `${this._previewHeight}px`
+	/**
+	* Attach zoom events.
+	*/
+	#eventsZoom() {
+		let lastDist;
+		let image;
+		const getTouchDistance = (e) => {
+			const touches = getTouchPositions(e);
+			return $._dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
+		};
+		const downEvent = (e) => {
+			if (!this.node || !this.#img || this.#cancelLoad) return false;
+			image = this.#img;
+			lastDist = getTouchDistance(e);
+		};
+		const moveEvent = (e) => {
+			if (!this.node || this.#img !== image || this.#cancelLoad) return;
+			const newDist = getTouchDistance(e);
+			const diff = newDist - lastDist;
+			lastDist = newDist;
+			this.#zoom += diff / $._dist(0, 0, this.#previewWidth, this.#previewHeight);
+			this.#clampZoom();
+			this.#clampOffset();
+			this.#updatePreview();
+			$.triggerEvent(this.node, "update.ui.imagecrop");
+		};
+		const dragEvent = $.mouseDragFactory(downEvent, moveEvent, null, { touches: 2 });
+		$.addEvent(this.#container, "touchstart.ui.imagecrop", dragEvent);
+		$.addEvent(this.#container, "wheel.ui.imagecrop", (e) => {
+			if (!this.node || !this.#img || this.#cancelLoad) return;
+			e.preventDefault();
+			if (e.deltaY > 0) this.#zoom -= this.options.zoomAmount;
+			else if (e.deltaY < 0) this.#zoom += this.options.zoomAmount;
+			this.#clampZoom();
+			this.#clampOffset();
+			this.#updatePreview();
+			$.triggerEvent(this.node, "update.ui.imagecrop");
+		});
+	}
+	/**
+	* Render the ImageCrop.
+	*/
+	#render() {
+		this.#outerContainer = $.create("div", { class: this.constructor.classes.outerContainer });
+		this.#container = $.create("div", {
+			class: this.constructor.classes.container,
+			style: { boxSizing: "content-box" }
+		});
+		if (this.options.circle) $.addClass(this.#container, this.constructor.classes.circle);
+		if (this.options.resize) {
+			this.#resize = $.create("div", {
+				class: this.constructor.classes.resize,
+				style: {
+					width: "5px",
+					height: "5px",
+					backgroundColor: "black",
+					cursor: "nwse-resize",
+					zIndex: 1
+				}
 			});
-			this._canvasWidth = this._img.width;
-			this._canvasHeight = this._img.height;
-			if (this._offsetX === null) this._offsetX = this._canvasWidth / 2;
-			if (this._offsetY === null) this._offsetY = this._canvasHeight / 2;
-			if (this._zoom === null) this._zoom = Math.min(this._previewWidth / this._canvasWidth, this._previewHeight / this._canvasHeight);
-			let rotation;
-			switch (this._orientation) {
-				case 2:
-					this._flipped = true;
-					break;
-				case 3:
-					rotation = 180;
-					break;
-				case 4:
-					this._flipped = true;
-					rotation = 180;
-					break;
-				case 5:
-					this._flipped = true;
-					rotation = 270;
-					break;
-				case 6:
-					rotation = 270;
-					break;
-				case 7:
-					this._flipped = true;
-					rotation = 90;
-					break;
-				case 8: rotation = 90;
-			}
-			if (rotation) this._updateRotation(rotation);
-			this._clampZoom();
-			this._clampOffset();
-			this._updatePreviewCanvas();
-			this._updatePreview();
-			resolve();
-		};
-		const loadImg = (_) => {
-			this._reader.onload = (_) => {
-				this._img.src = this._reader.result;
-			};
-			this._reader.readAsDataURL(file);
-		};
-		if (this._options.exifOrientation) {
-			this._reader.onload = (_) => {
-				this._orientation = getOrientation(this._reader.result);
-				loadImg();
-			};
-			this._reader.readAsArrayBuffer(file);
-		} else loadImg();
-	});
-}
-
-//#endregion
-//#region src/prototype/render.js
-/**
-* Render the ImageCrop.
-*/
-function _render() {
-	this._outerContainer = $.create("div", { class: this.constructor.classes.outerContainer });
-	this._container = $.create("div", {
-		class: this.constructor.classes.container,
-		style: { boxSizing: "content-box" }
-	});
-	if (this._options.circle) $.addClass(this._container, this.constructor.classes.circle);
-	if (this._options.resize) {
-		this._resize = $.create("div", {
-			class: this.constructor.classes.resize,
+			$.append(this.#outerContainer, this.#resize);
+		}
+		this.#canvas = $.create("canvas", {
+			class: this.constructor.classes.preview,
 			style: {
-				width: "5px",
-				height: "5px",
-				backgroundColor: "black",
-				cursor: "nwse-resize",
-				zIndex: 1
+				transformOrigin: "0 0",
+				left: 0
 			}
 		});
-		$.append(this._outerContainer, this._resize);
+		this.#context = this.#canvas.getContext("2d");
+		$.append(this.#container, this.#canvas);
+		$.append(this.#outerContainer, this.#container);
+		$.append(this.node, this.#outerContainer);
 	}
-	this._canvas = $.create("canvas", {
-		class: this.constructor.classes.preview,
-		style: { transformOrigin: "0 0" }
-	});
-	this._context = this._canvas.getContext("2d");
-	$.append(this._container, this._canvas);
-	$.append(this._outerContainer, this._container);
-	$.append(this._node, this._outerContainer);
-}
-
-//#endregion
-//#region src/prototype/result.js
-/**
-* Get the rendered image.
-* @param {object} [options] Options for rendering the image.
-* @param {string} [options.type=base64] The type of image to render.
-* @param {string} [options.format=png] The image format to render.
-* @param {string|object} [options.size=viewport] The size to render the image.
-* @param {number} [options.quality=1] The image quality to render.
-* @param {boolean} [options.circle=false] Whether to render the image as a circle.
-* @param {string} [options.background] The background color to render the image with.
-* @returns {Promise} A promise that resolves with the rendered image.
-*/
-function result(options = {}) {
-	const { type = "base64", format = "png", size = "viewport", quality = 1, circle = false, background = null } = options;
-	const canvas = $.create("canvas");
-	const context = canvas.getContext("2d");
-	let width = this._previewWidth;
-	let height = this._previewHeight;
-	if (size === "original") {
-		width /= this._zoom;
-		height /= this._zoom;
-	} else if ($._isObject(size)) {
-		if (size.width && size.height) {
-			width = size.width;
-			height = size.height;
+	/**
+	* Requires a successfully loaded image for public image operations.
+	*/
+	#requireImage() {
+		if (!this.node) throw new Error("ImageCrop has been disposed.");
+		if (!this.#img) throw new Error("Load an image before using ImageCrop.");
+	}
+	/**
+	* Resize the image preview.
+	* @param {number} width The preview width.
+	* @param {number} height The preview height.
+	*/
+	#resizePreview(width, height) {
+		width = Math.max(1, width);
+		height = Math.max(1, height);
+		if (this.options.maxPreviewWidth) width = Math.min(width, this.options.maxPreviewWidth);
+		if (this.options.maxPreviewHeight) height = Math.min(height, this.options.maxPreviewHeight);
+		if (this.options.enforceBoundary) {
+			this.#previewWidth = Math.min(width, this.#canvasWidth * this.#zoom);
+			this.#previewHeight = Math.min(height, this.#canvasHeight * this.#zoom);
+			this.#clampOffset();
 		} else {
-			const ratio = width / height;
-			if (size.width) {
-				width = size.width;
-				height = width / ratio;
-			} else if (size.height) {
-				height = size.height;
-				width = height * ratio;
-			}
+			this.#offsetX -= (width - this.#previewWidth) / this.#zoom / 2;
+			this.#offsetY -= (height - this.#previewHeight) / this.#zoom / 2;
+			this.#previewWidth = width;
+			this.#previewHeight = height;
 		}
+		$.setStyle(this.#outerContainer, {
+			width: `${this.#previewWidth}px`,
+			height: `${this.#previewHeight}px`
+		});
 	}
-	const ratio = width / height;
-	if (this._options.maxWidth) {
-		width = Math.min(width, this._options.maxWidth);
-		height = width / ratio;
+	/**
+	* Update the preview.
+	*/
+	#updatePreview() {
+		const x = (-this.#canvasWidth + this.#offsetX) * this.#zoom + this.#previewWidth / 2;
+		const y = (-this.#canvasHeight + this.#offsetY) * this.#zoom + this.#previewHeight / 2;
+		$.setStyle(this.#canvas, { transform: `translate3d(${x}px, ${y}px, 0) scale(${this.#zoom})` });
 	}
-	if (this._options.maxHeight) {
-		height = Math.min(height, this._options.maxHeight);
-		width = height * ratio;
+	/**
+	* Update the preview canvas.
+	*/
+	#updatePreviewCanvas() {
+		$.setAttribute(this.#canvas, {
+			width: this.#canvasWidth,
+			height: this.#canvasHeight
+		});
+		this.#context.clearRect(0, 0, this.#canvasWidth, this.#canvasHeight);
+		this.#context.save();
+		this.#context.translate(this.#canvasWidth / 2, this.#canvasHeight / 2);
+		this.#context.rotate(this.#rotation * Math.PI / 180);
+		if (this.#flipped) this.#context.scale(-1, 1);
+		this.#context.drawImage(this.#img, -this.#img.width / 2, -this.#img.height / 2, this.#img.width, this.#img.height);
+		this.#context.restore();
 	}
-	$.setAttribute(canvas, {
-		width: `${width}px`,
-		height: `${height}px`
-	});
-	const [x1, y1, x2, y2] = this.getBounds();
-	context.drawImage(this._canvas, x1, y1, x2 - x1, y2 - y1, 0, 0, width, height);
-	if (circle || this._options.circle) {
-		context.globalCompositeOperation = "destination-in";
-		context.beginPath();
-		context.arc(width / 2, height / 2, width / 2, 0, Math.PI * 2);
-		context.closePath();
-		context.fill();
-	}
-	if (background) {
-		context.globalCompositeOperation = "destination-over";
-		context.fillStyle = background;
-		context.rect(0, 0, width, height);
-		context.fill();
-		context.fillStyle = "#000";
-	}
-	context.globalCompositeOperation = "source-over";
-	return new Promise((resolve) => {
-		switch (type) {
-			case "base64":
-				resolve(canvas.toDataURL(`image/${format}`, quality));
-				break;
-			case "blob":
-				canvas.toBlob(resolve, `image/${format}`, quality);
-				break;
-			default: resolve(canvas);
+	/**
+	* Adjust the rotation by an amount.
+	* @param {number} amount The amount.
+	*/
+	#updateRotation(amount) {
+		const turns = (amount % 360 + 360) % 360 / 90;
+		for (let turn = 0; turn < turns; turn++) {
+			const offsetX = this.#offsetX;
+			this.#offsetX = this.#canvasHeight - this.#offsetY;
+			this.#offsetY = offsetX;
+			[this.#canvasWidth, this.#canvasHeight] = [this.#canvasHeight, this.#canvasWidth];
 		}
-	});
-}
+		this.#rotation = ((this.#rotation + amount) % 360 + 360) % 360;
+	}
+	/**
+	* Validates dimensions and zoom limits before rendering.
+	*/
+	#validateOptions() {
+		for (const key of [
+			"previewWidth",
+			"previewHeight",
+			"minZoom",
+			"maxZoom",
+			"zoomAmount"
+		]) if (!Number.isFinite(this.options[key]) || this.options[key] <= 0) throw new RangeError(`${key} must be a positive finite number.`);
+		for (const key of [
+			"maxPreviewWidth",
+			"maxPreviewHeight",
+			"maxWidth",
+			"maxHeight"
+		]) if (this.options[key] !== null && (!Number.isFinite(this.options[key]) || this.options[key] <= 0)) throw new RangeError(`${key} must be null or a positive finite number.`);
+		if (this.options.minZoom > this.options.maxZoom) throw new RangeError("minZoom must not exceed maxZoom.");
+	}
+};
 
 //#endregion
 //#region src/index.js
-ImageCrop.defaults = {
-	previewWidth: 300,
-	previewHeight: 300,
-	maxPreviewWidth: null,
-	maxPreviewHeight: null,
-	maxWidth: null,
-	maxHeight: null,
-	minZoom: .1,
-	maxZoom: 10,
-	zoomAmount: .1,
-	circle: false,
-	exifOrientation: true,
-	zoom: true,
-	resize: false,
-	rotate: true,
-	enforceBoundary: true
-};
-ImageCrop.classes = {
-	circle: "rounded-circle",
-	container: "position-relative w-100 h-100 overflow-hidden border",
-	outerContainer: "position-relative",
-	preview: "position-absolute top-0 left-0",
-	resize: "position-absolute top-100 start-100"
-};
-var proto = ImageCrop.prototype;
-proto.load = load;
-proto.result = result;
-proto._clampOffset = _clampOffset;
-proto._clampZoom = _clampZoom;
-proto._events = _events;
-proto._eventsResize = _eventsResize;
-proto._eventsZoom = _eventsZoom;
-proto._render = _render;
-proto._resizePreview = _resizePreview;
-proto._updatePreview = _updatePreview;
-proto._updatePreviewCanvas = _updatePreviewCanvas;
-proto._updateRotation = _updateRotation;
 initComponent("imagecrop", ImageCrop);
 var src_default = ImageCrop;
 

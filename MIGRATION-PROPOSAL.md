@@ -1,8 +1,14 @@
 # ImageCrop 3.0 migration proposal
 
-Propose releasing `@fr0st/ui-imagecrop` **3.0.0**, aligned with the local `../ui`, `../ui-authcodeinput`, and `../ui-sortable` repositories. Step 1 is implemented: package/configuration updates, Vite outputs, and the reference browser harness. Build, lint, and package-content checks pass. Component migration and behavior tests remain for subsequent steps.
+Propose releasing `@fr0st/ui-imagecrop` **3.0.0**, aligned with the local `../ui`, `../ui-authcodeinput`, and `../ui-sortable` repositories. Steps 1 and 2 are implemented: package/configuration updates, Vite outputs, the reference browser harness, and the UI 4 class/lifecycle migration. The wider behavior coverage, styling, documentation, and CI work remain for subsequent steps.
 
-The main compatibility change is Frost UI 4's component model. Updating package versions alone will break construction because ImageCrop uses `this._options` and `this._node`, whereas the new BaseComponent exposes `this.options` and `this.node`.
+The main compatibility change is Frost UI 4's component model. The migrated ImageCrop uses the inherited `node` and `options` getters, static defaults/classes, private fields and methods, and typed JSDoc. The prototype directory has been removed; `src/index.js` now only registers and exports the class.
+
+Step 2 adds 55 regression cases following the reference describe groups and class/QuerySet patterns. They cover initialization, option validation, disposal, superseded loads, failed replacements, public methods, update-listener disposal, resize geometry, malformed metadata, and EXIF orientation being applied once. Assertions use locators for DOM behavior and numeric/pixel checks for image behavior. Full EXIF 1–8, touch/pinch, option, and export coverage remains in step 3.
+
+Validation: build and lint pass. All 55 regression cases have been verified across Chromium, Firefox, and WebKit. The resize-position assertion uses numeric tolerance for subpixel rounding and was rerun successfully in all three browsers after correction.
+
+Loading now rejects superseded/disposed requests with `AbortError`, rejects malformed or undecodable files without replacing the previous image, and releases temporary object URLs. Image operations before loading or after disposal throw/reject a descriptive error. Rotation requires finite quarter turns; bounds, zoom, and output dimensions are validated. EXIF normalization changes a newly read buffer, not the caller's Blob. Rectangular circular exports use a centered circle whose diameter fits the smaller output dimension.
 
 ## Dependency and package baseline
 
@@ -117,7 +123,11 @@ Use current npm CDN paths for the demo and local ImageCrop bundles. Await loadin
 
 ## Bugs and other issues encountered
 
-These findings distinguish source inspection and isolated reproduction from browser behavior still needing verification. No full browser suite was run for this proposal.
+These findings originated in the initial source review and isolated reproductions. Step 2 regression tests now cover the component/lifecycle defects; the evidence below retains the original file paths for context.
+
+Fixed in step 2: UI 4 field access, truncated EXIF failures and unresolved loads, stale mirroring, arbitrary-angle rotation, negative resize dimensions, loading/disposal races, pre-load operations, post-rotation offset clamping, EXIF double orientation, and numeric output dimensions. Additional review found that resizing without boundary enforcement shifted the image horizontally; the resize regression now checks that the canvas position stays fixed. Circular output is bounded by both dimensions, and failed Blob encoding rejects instead of resolving with `null`.
+
+Still scheduled: the methods/download demo fixes and styling/README alignment in step 4, and comprehensive image behavior/coverage work in step 3. No bundle tests or custom server/port conventions were introduced.
 
 | Finding | Evidence | Proposed treatment |
 | --- | --- | --- |
@@ -127,10 +137,10 @@ These findings distinguish source inspection and isolated reproduction from brow
 | Mirroring persists between images | `load.js` sets `_flipped = true` for mirrored orientations but never resets it on subsequent loads. | Reset orientation state for every successfully loaded image. |
 | Arbitrary rotation is silently changed | Isolated helper execution reproduced `rotate(45)` becoming 90 degrees with swapped dimensions. | Validate quarter-turn inputs and document the contract. |
 | Invalid resize geometry is accepted | Isolated helper execution retained preview dimensions of -10 by -20; drag resizing has no positive lower bound. | Validate/clamp dimensions and test crossing the minimum size. |
-| Unsafe asynchronous lifecycle | One shared FileReader/Image has handlers replaced by every load; `dispose()` neither aborts the reader nor detaches image callbacks. | Add explicit cancellation, stale-operation guards, and tests for overlapping loads/disposal. Browser reproduction pending. |
+| Unsafe asynchronous lifecycle | One shared FileReader/Image has handlers replaced by every load; `dispose()` neither aborts the reader nor detaches image callbacks. | Fixed with per-load resources and cancellation; covered by step 2 load/disposal regressions. |
 | Gestures and methods can run before loading | Events are attached in the constructor before image dimensions, offsets, and zoom exist. | Gate interactions and define not-ready method behavior. |
 | Rotation does not reclamp offsets | `rotate()` clamps zoom but omits the offset clamp used by other geometry changes. | Test non-square previews near image edges, then clamp if needed. |
-| Possible double/wrong EXIF orientation | The existing loader manually rotates an ordinary browser-decoded image. | Verify all eight supplied EXIF fixtures in all browsers before changing decoding. This is a compatibility risk, not a reproduced browser finding. |
+| Possible double/wrong EXIF orientation | The original loader manually rotates an ordinary browser-decoded image. | Step 2 normalizes the metadata before decoding and tests orientations 2 and 6, including disabled orientation handling. The full matrix remains in step 3. |
 | Methods demo references the wrong control | `demo/methods.html:42` declares `cropSetZooms` from `#cropDispose`, then uses undeclared `cropSetZoom`; `output` also relies on named window properties. | Use explicit selectors and correct variable names. |
 | Download URL is never released | `demo/result-blob.html` calls `URL.createObjectURL` without `URL.revokeObjectURL`. | Revoke after the download has been initiated safely. |
 | Export edge cases need an explicit contract | Canvas width/height attributes include `px`; circle radius uses width alone for rectangular output; unknown result types silently produce a canvas. | Use numeric canvas dimensions, specify rectangular circle behavior, and validate/document result options with pixel tests. |

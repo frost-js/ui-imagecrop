@@ -1,52 +1,75 @@
 /**
- * Get the EXIF orientation.
- * @param {ArrayBuffer} data The file data.
- * @returns {number} The EXIF orientation.
+ * Reads JPEG EXIF orientation, optionally resetting its tag before decoding.
+ * @param {ArrayBuffer} data The image data. Resetting changes this buffer only.
+ * @param {boolean} [reset=false] Whether to replace the orientation tag with 1.
+ * @returns {number} The orientation, or 1 when the image has no orientation tag.
  */
-export function getOrientation(data) {
+export function getOrientation(data, reset = false) {
     const view = new DataView(data);
-    const getInt16 = (offset, littleEndian = false) => view.getUint16(offset, littleEndian);
-    const getInt32 = (offset, littleEndian = false) => view.getUint32(offset, littleEndian);
-
-    if (getInt16(0) != 0xffd8) {
-        return -2;
+    if (view.byteLength < 2) {
+        throw new Error('Invalid image data.');
+    }
+    if (view.getUint16(0) !== 0xffd8) {
+        return 1;
     }
 
     let offset = 2;
     while (offset < view.byteLength) {
-        if (getInt16(offset + 2) <= 8) {
-            return -1;
+        if (offset + 4 > view.byteLength) {
+            throw new Error('Truncated JPEG metadata.');
         }
-
-        const marker = getInt16(offset);
-        offset += 2;
-
-        if ((marker & 0xff00) != 0xff00) {
+        const marker = view.getUint16(offset);
+        if (marker === 0xffda || marker === 0xffd9) {
             break;
         }
+        const length = view.getUint16(offset + 2);
+        const end = offset + 2 + length;
+        if ((marker & 0xff00) !== 0xff00 || length < 2 || end > view.byteLength) {
+            throw new Error('Invalid JPEG metadata.');
+        }
 
-        if (marker != 0xffe1) {
-            offset += getInt16(offset);
+        const start = offset + 4;
+        offset = end;
+        if (marker !== 0xffe1 || length < 8 ||
+            view.getUint32(start) !== 0x45786966 || view.getUint16(start + 4) !== 0) {
             continue;
         }
 
-        offset += 2;
-        if (getInt32(offset) != 0x45786966) {
-            return -1;
+        const tiff = start + 6;
+        if (tiff + 8 > end) {
+            throw new Error('Truncated EXIF metadata.');
         }
-
-        offset += 6;
-        const little = getInt16(offset) == 0x4949;
-        offset += getInt32(offset + 4, little);
-        const tags = getInt16(offset, little) * 12;
-        offset += 2;
-
-        for (let i = 0; i < tags; i += 12) {
-            if (getInt16(offset + i, little) == 0x0112) {
-                return getInt16(offset + i + 8, little);
+        const order = view.getUint16(tiff);
+        const little = order === 0x4949;
+        if ((order !== 0x4949 && order !== 0x4d4d) || view.getUint16(tiff + 2, little) !== 42) {
+            throw new Error('Invalid EXIF byte order or header.');
+        }
+        const directoryOffset = view.getUint32(tiff + 4, little);
+        const directory = tiff + directoryOffset;
+        if (directoryOffset < 8 || directory + 2 > end) {
+            throw new Error('Invalid EXIF directory offset.');
+        }
+        const count = view.getUint16(directory, little);
+        if (directory + 2 + count * 12 > end) {
+            throw new Error('Truncated EXIF directory.');
+        }
+        for (let tag = directory + 2; tag < directory + 2 + count * 12; tag += 12) {
+            if (view.getUint16(tag, little) !== 0x0112) {
+                continue;
             }
+            if (view.getUint16(tag + 2, little) !== 3 || view.getUint32(tag + 4, little) !== 1) {
+                throw new Error('Invalid EXIF orientation tag.');
+            }
+            const orientation = view.getUint16(tag + 8, little);
+            if (orientation < 1 || orientation > 8) {
+                throw new Error('Invalid EXIF orientation.');
+            }
+            if (reset) {
+                view.setUint16(tag + 8, 1, little);
+            }
+            return orientation;
         }
     }
 
-    return -1;
+    return 1;
 };
