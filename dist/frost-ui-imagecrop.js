@@ -46,6 +46,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		if (view.getUint16(0) !== 65496) return 1;
 		let offset = 2;
 		while (offset < view.byteLength) {
+			while (offset + 1 < view.byteLength && view.getUint16(offset) === 65535) offset++;
 			if (offset + 4 > view.byteLength) throw new Error("Truncated JPEG metadata.");
 			const marker = view.getUint16(offset);
 			if (marker === 65498 || marker === 65497) break;
@@ -266,7 +267,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					this.#canvasHeight = image.naturalHeight;
 					this.#offsetX = x ?? this.#canvasWidth / 2;
 					this.#offsetY = y ?? this.#canvasHeight / 2;
-					this.#zoom = zoom ?? Math.min(this.#previewWidth / this.#canvasWidth, this.#previewHeight / this.#canvasHeight);
 					this.#updateRotation({
 						3: 180,
 						4: 180,
@@ -275,6 +275,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 						7: 90,
 						8: 270
 					}[orientation] ?? 0);
+					this.#zoom = zoom ?? Math.min(this.#previewWidth / this.#canvasWidth, this.#previewHeight / this.#canvasHeight);
 					this.#clampZoom();
 					this.#clampOffset();
 					_fr0st_query.default.setStyle(this.#outerContainer, {
@@ -489,7 +490,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent);
 			_fr0st_query.default.addEvent(this.#container, "mousedown.ui.imagecrop touchstart.ui.imagecrop", dragEvent);
 			if (this.options.resize) this.#eventsResize();
-			if (this.options.zoom) this.#eventsZoom();
+			if (this.options.zoom) this.#eventsZoom((e) => {
+				if (e.touches.length === 1) lastPos = (0, _fr0st_ui.getPosition)(e);
+			});
 		}
 		/**
 		* Attach resize events.
@@ -518,8 +521,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		}
 		/**
 		* Attach zoom events.
+		* @param {function(TouchEvent): void} upEvent The pinch end callback.
 		*/
-		#eventsZoom() {
+		#eventsZoom(upEvent) {
 			let lastDist;
 			let image;
 			const getTouchDistance = (e) => {
@@ -542,7 +546,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#updatePreview();
 				_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
 			};
-			const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent, null, { touches: 2 });
+			const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent, upEvent, { touches: 2 });
 			_fr0st_query.default.addEvent(this.#container, "touchstart.ui.imagecrop", dragEvent);
 			_fr0st_query.default.addEvent(this.#container, "wheel.ui.imagecrop", (e) => {
 				if (!this.node || !this.#img || this.#cancelLoad) return;

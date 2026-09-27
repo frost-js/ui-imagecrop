@@ -201,7 +201,6 @@ $.ready(() => {
             const options = {
                 type,
                 format: document.querySelector('#result-format').value,
-                quality: document.querySelector('#result-quality').valueAsNumber,
                 size: size === 'custom' ? {
                     width: document.querySelector('#result-width').valueAsNumber,
                     ...(document.querySelector('#result-height').value ? { height: document.querySelector('#result-height').valueAsNumber } : {}),
@@ -209,6 +208,9 @@ $.ready(() => {
                 circle: document.querySelector('#result-circle').checked,
                 background: document.querySelector('#result-fill').checked ? document.querySelector('#result-background').value : null,
             };
+            if (type !== 'canvas' && options.format === 'jpeg') {
+                options.quality = document.querySelector('#result-quality').valueAsNumber;
+            }
             const result = await crop.result(options);
             let blob = result;
             if (type === 'base64') {

@@ -640,6 +640,42 @@ test.describe('ImageCrop', () => {
             });
         }
 
+        for (const remaining of [50, 250]) {
+            test(`resumes panning from the remaining touch at ${remaining} after a pinch`, async ({ page }) => {
+                const movement = await page.evaluate(async (remaining) => {
+                    const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                    await crop.load(window.imageFile, { zoom: 1 });
+                    const container = document.querySelector('#crop .overflow-hidden');
+                    const canvas = document.querySelector('#crop canvas');
+                    for (const [type, positions] of [
+                        ['touchstart', [100]],
+                        ['touchstart', [100, 200]],
+                        ['touchmove', [50, 250]],
+                        ['touchend', [remaining]],
+                    ]) {
+                        const event = new Event(type, { bubbles: true, cancelable: true });
+                        Object.defineProperty(event, 'touches', { value: positions.map((pageX) => ({ pageX, pageY: 100 })) });
+                        (type === 'touchstart' ? container : window).dispatchEvent(event);
+                        await Promise.resolve();
+                    }
+                    const before = canvas.getBoundingClientRect();
+                    const move = new Event('touchmove', { bubbles: true, cancelable: true });
+                    Object.defineProperty(move, 'touches', { value: [{ pageX: remaining + 1, pageY: 102 }] });
+                    window.dispatchEvent(move);
+                    await Promise.resolve();
+                    const after = canvas.getBoundingClientRect();
+                    const end = new Event('touchend', { bubbles: true, cancelable: true });
+                    Object.defineProperty(end, 'touches', { value: [] });
+                    window.dispatchEvent(end);
+                    await Promise.resolve();
+                    return { x: after.x - before.x, y: after.y - before.y };
+                }, remaining);
+                expect(movement.x).toBeCloseTo(1);
+                expect(movement.y).toBeCloseTo(2);
+                expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBeCloseTo(1 + 100 / Math.hypot(300, 300));
+            });
+        }
+
         test('stops pinch zoom after touch cancellation', async ({ page }) => {
             const zoom = await page.evaluate(async () => {
                 const crop = UI.ImageCrop.init(document.querySelector('#crop'));

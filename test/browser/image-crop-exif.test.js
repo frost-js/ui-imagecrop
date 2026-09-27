@@ -64,6 +64,29 @@ test.describe('ImageCrop EXIF orientation', () => {
             }
         }
 
+        for (const orientation of [5, 6, 7, 8]) {
+            for (const zoom of [null, .5]) {
+                test(`${zoom === null ? 'fits the oriented image into a rectangular preview' : 'preserves explicit zoom'} for EXIF ${orientation}`, async ({ page }) => {
+                    const file = await createImage(page, { orientation });
+                    await page.evaluate(async ({ file, zoom }) => {
+                        const crop = UI.ImageCrop.init(document.querySelector('#crop'), {
+                            previewWidth: 300,
+                            previewHeight: 100,
+                            enforceBoundary: false,
+                        });
+                        await crop.load(file, { zoom });
+                    }, { file, zoom });
+                    expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBeCloseTo(zoom ?? .15625);
+                    const canvas = page.locator('#crop canvas');
+                    await expect(canvas).toHaveAttribute('width', '480');
+                    await expect(canvas).toHaveAttribute('height', '640');
+                    const box = await canvas.boundingBox();
+                    expect(box.width).toBeCloseTo(zoom === null ? 75 : 240);
+                    expect(box.height).toBeCloseTo(zoom === null ? 100 : 320);
+                });
+            }
+        }
+
         for (let orientation = 1; orientation <= 8; orientation++) {
             test(`ignores EXIF ${orientation} when orientation handling is disabled`, async ({ page }) => {
                 const file = await createImage(page, { width: 80, height: 40, quadrants: true, orientation });
@@ -87,6 +110,40 @@ test.describe('ImageCrop EXIF orientation', () => {
     });
 
     test.describe('metadata', () => {
+        for (const padding of [1, 4]) {
+            test(`loads JPEG markers with ${padding} padding bytes and applies orientation once`, async ({ page }) => {
+                const file = await createImage(page, { width: 80, height: 40, quadrants: true, orientation: 6 });
+                await page.evaluate(async ({ file, padding }) => {
+                    const bytes = new Uint8Array(await file.arrayBuffer());
+                    const fill = new Uint8Array(padding).fill(255);
+                    const app = new Uint8Array([255, 239, 0, 4, 0, 0]);
+                    const modified = new Blob([bytes.slice(0, 2), fill, app, fill, bytes.slice(2)], { type: 'image/jpeg' });
+                    await UI.ImageCrop.init(document.querySelector('#crop')).load(modified);
+                }, { file, padding });
+                const canvas = page.locator('#crop canvas');
+                await expect(canvas).toHaveAttribute('width', '40');
+                await expect(canvas).toHaveAttribute('height', '80');
+                expect(await canvas.evaluate((canvas) =>
+                    canvas.getContext('2d').getImageData(10, 10, 1, 1).data[2],
+                )).toBeGreaterThan(250);
+            });
+        }
+
+        for (const [name, bytes] of [
+            ['padding', [255, 216, 255, 255, 255]],
+            ['marker', [255, 216, 255, 255, 225]],
+            ['segment length', [255, 216, 255, 255, 225, 0]],
+        ]) {
+            test(`rejects truncated JPEG ${name} after padding and can load a valid image afterward`, async ({ page }) => {
+                await expect(page.evaluate(async (bytes) => {
+                    await UI.ImageCrop.init(document.querySelector('#crop')).load(new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }));
+                }, bytes)).rejects.toThrow('Truncated JPEG metadata');
+                const file = await createImage(page);
+                await page.evaluate((file) => $.getData('#crop', 'imagecrop').load(file), file);
+                await expect(page.locator('#crop canvas')).toHaveAttribute('width', '640');
+            });
+        }
+
         test('skips an unrelated APP1 segment and an unrelated TIFF tag', async ({ page }) => {
             const file = await createImage(page, { width: 80, height: 40, orientation: 2 });
             await page.evaluate(async (file) => {

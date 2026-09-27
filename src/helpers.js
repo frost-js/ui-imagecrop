@@ -15,6 +15,10 @@ export function getOrientation(data, reset = false) {
 
     let offset = 2;
     while (offset < view.byteLength) {
+        // JPEG markers may be preceded by any number of 0xff padding bytes.
+        while (offset + 1 < view.byteLength && view.getUint16(offset) === 0xffff) {
+            offset++;
+        }
         if (offset + 4 > view.byteLength) {
             throw new Error('Truncated JPEG metadata.');
         }

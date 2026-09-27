@@ -214,10 +214,10 @@ export default class ImageCrop extends BaseComponent {
                 this.#canvasHeight = image.naturalHeight;
                 this.#offsetX = x ?? this.#canvasWidth / 2;
                 this.#offsetY = y ?? this.#canvasHeight / 2;
-                this.#zoom = zoom ?? Math.min(this.#previewWidth / this.#canvasWidth, this.#previewHeight / this.#canvasHeight);
 
                 const rotations = { 3: 180, 4: 180, 5: 270, 6: 90, 7: 90, 8: 270 };
                 this.#updateRotation(rotations[orientation] ?? 0);
+                this.#zoom = zoom ?? Math.min(this.#previewWidth / this.#canvasWidth, this.#previewHeight / this.#canvasHeight);
                 this.#clampZoom();
                 this.#clampOffset();
                 $.setStyle(this.#outerContainer, {
@@ -514,7 +514,12 @@ export default class ImageCrop extends BaseComponent {
         }
 
         if (this.options.zoom) {
-            this.#eventsZoom();
+            this.#eventsZoom((e) => {
+                if (e.touches.length === 1) {
+                    // Resume panning from the remaining finger's position after a pinch.
+                    lastPos = getPosition(e);
+                }
+            });
         }
     }
 
@@ -559,8 +564,9 @@ export default class ImageCrop extends BaseComponent {
 
     /**
      * Attach zoom events.
+     * @param {function(TouchEvent): void} upEvent The pinch end callback.
      */
-    #eventsZoom() {
+    #eventsZoom(upEvent) {
         let lastDist;
         let image;
 
@@ -596,7 +602,7 @@ export default class ImageCrop extends BaseComponent {
             $.triggerEvent(this.node, 'update.ui.imagecrop');
         };
 
-        const dragEvent = $.mouseDragFactory(downEvent, moveEvent, null, { touches: 2 });
+        const dragEvent = $.mouseDragFactory(downEvent, moveEvent, upEvent, { touches: 2 });
 
         $.addEvent(this.#container, 'touchstart.ui.imagecrop', dragEvent);
 

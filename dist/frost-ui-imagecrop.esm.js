@@ -14,6 +14,7 @@ function getOrientation(data, reset = false) {
 	if (view.getUint16(0) !== 65496) return 1;
 	let offset = 2;
 	while (offset < view.byteLength) {
+		while (offset + 1 < view.byteLength && view.getUint16(offset) === 65535) offset++;
 		if (offset + 4 > view.byteLength) throw new Error("Truncated JPEG metadata.");
 		const marker = view.getUint16(offset);
 		if (marker === 65498 || marker === 65497) break;
@@ -234,7 +235,6 @@ var ImageCrop = class extends BaseComponent {
 				this.#canvasHeight = image.naturalHeight;
 				this.#offsetX = x ?? this.#canvasWidth / 2;
 				this.#offsetY = y ?? this.#canvasHeight / 2;
-				this.#zoom = zoom ?? Math.min(this.#previewWidth / this.#canvasWidth, this.#previewHeight / this.#canvasHeight);
 				this.#updateRotation({
 					3: 180,
 					4: 180,
@@ -243,6 +243,7 @@ var ImageCrop = class extends BaseComponent {
 					7: 90,
 					8: 270
 				}[orientation] ?? 0);
+				this.#zoom = zoom ?? Math.min(this.#previewWidth / this.#canvasWidth, this.#previewHeight / this.#canvasHeight);
 				this.#clampZoom();
 				this.#clampOffset();
 				$.setStyle(this.#outerContainer, {
@@ -457,7 +458,9 @@ var ImageCrop = class extends BaseComponent {
 		const dragEvent = $.mouseDragFactory(downEvent, moveEvent);
 		$.addEvent(this.#container, "mousedown.ui.imagecrop touchstart.ui.imagecrop", dragEvent);
 		if (this.options.resize) this.#eventsResize();
-		if (this.options.zoom) this.#eventsZoom();
+		if (this.options.zoom) this.#eventsZoom((e) => {
+			if (e.touches.length === 1) lastPos = getPosition(e);
+		});
 	}
 	/**
 	* Attach resize events.
@@ -486,8 +489,9 @@ var ImageCrop = class extends BaseComponent {
 	}
 	/**
 	* Attach zoom events.
+	* @param {function(TouchEvent): void} upEvent The pinch end callback.
 	*/
-	#eventsZoom() {
+	#eventsZoom(upEvent) {
 		let lastDist;
 		let image;
 		const getTouchDistance = (e) => {
@@ -510,7 +514,7 @@ var ImageCrop = class extends BaseComponent {
 			this.#updatePreview();
 			$.triggerEvent(this.node, "update.ui.imagecrop");
 		};
-		const dragEvent = $.mouseDragFactory(downEvent, moveEvent, null, { touches: 2 });
+		const dragEvent = $.mouseDragFactory(downEvent, moveEvent, upEvent, { touches: 2 });
 		$.addEvent(this.#container, "touchstart.ui.imagecrop", dragEvent);
 		$.addEvent(this.#container, "wheel.ui.imagecrop", (e) => {
 			if (!this.node || !this.#img || this.#cancelLoad) return;
