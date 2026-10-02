@@ -1,3 +1,17 @@
+section[id],
+.demo-anchor {
+    scroll-margin-top: 6rem;
+}
+
+.demo-event-log {
+    height: 18rem;
+    overflow-y: auto;
+}
+
+.demo-event-log > :last-child {
+    margin-block-end: 0;
+}
+
 @media (min-width: 992px) {
     .demo-preview {
         top: 5rem;
@@ -12,18 +26,9 @@
     width: fit-content;
 }
 
-.demo-event-log {
-    height: 18rem;
-}
-
 .demo-result > img,
 .demo-result > canvas {
     display: block;
     max-width: 100%;
     height: auto;
-}
-
-section[id],
-#methods-events {
-    scroll-margin-top: 6rem;
 }

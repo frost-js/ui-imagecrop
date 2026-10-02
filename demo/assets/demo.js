@@ -1,5 +1,6 @@
-const $ = globalThis.$;
+const $ = globalThis.fQuery;
 const { ImageCrop } = globalThis.UI;
+const themeKey = 'frostui-imagecrop-demo-theme';
 
 const setTheme = (theme) => {
     if (theme === 'system') {
@@ -11,25 +12,56 @@ const setTheme = (theme) => {
     $('[data-demo-theme]').setValue(theme);
 };
 
-const storedTheme = localStorage.getItem('frostui-imagecrop-demo-theme');
-setTheme(['light', 'dark'].includes(storedTheme) ? storedTheme : 'system');
+const logEvent = (message, className = 'text-body-secondary') => {
+    const log = $.findOne('#event-log');
+    const entry = $.create('div', {
+        class: ['small', 'font-monospace', 'py-2', 'border-bottom', className],
+        text: message,
+    });
+
+    $.append(log, entry);
+
+    while ($.children(log).length > 50) {
+        $.remove($.child(log)[0]);
+    }
+
+    $.setScrollY(log, $.height(log, { boxSize: $.SCROLL_BOX }));
+};
 
 $.ready(() => {
+    let storedTheme;
+
+    try {
+        storedTheme = localStorage.getItem(themeKey);
+    } catch {
+        // The demo remains usable when browser storage is unavailable.
+    }
+
+    const requestedTheme = new URLSearchParams(location.search).get('theme');
+    const initialTheme = requestedTheme || storedTheme;
+    setTheme(['light', 'dark'].includes(initialTheme) ? initialTheme : 'system');
+
     $('[data-demo-theme]').addEvent('change', (event) => {
         const theme = $.getValue(event.currentTarget);
-
-        if (theme === 'system') {
-            localStorage.removeItem('frostui-imagecrop-demo-theme');
-        } else {
-            localStorage.setItem('frostui-imagecrop-demo-theme', theme);
-        }
-
         setTheme(theme);
+
+        try {
+            if (theme === 'system') {
+                localStorage.removeItem(themeKey);
+            } else {
+                localStorage.setItem(themeKey, theme);
+            }
+        } catch {
+            // Theme selection still applies for the current page.
+        }
+    });
+
+    $('#clear-log').addEvent('click', () => {
+        $('#event-log').empty();
     });
 
     const node = $.findOne('#crop');
     const input = $.findOne('#image-file');
-    const log = $.findOne('#event-log');
 
     let crop;
     let file;
@@ -90,7 +122,7 @@ $.ready(() => {
                 };
 
                 $('[data-option]').each((control) => {
-                    options[$.getDataset(control, 'option')] = control.checked;
+                    options[$.getDataset(control, 'option')] = $.getProperty(control, 'checked');
                 });
 
                 crop = ImageCrop.init(node, options);
@@ -127,8 +159,10 @@ $.ready(() => {
     };
 
     $.addEvent(input, 'change', () => {
-        if (input.files[0]) {
-            loadFile(input.files[0]);
+        const selectedFile = $.getProperty(input, 'files')[0];
+
+        if (selectedFile) {
+            loadFile(selectedFile);
         }
 
         $.setValue(input, '');
@@ -149,20 +183,7 @@ $.ready(() => {
     });
 
     $.addEvent(node, 'update.ui.imagecrop', () => {
-        const entry = $.create('div', {
-            class: 'small font-monospace py-2 border-bottom',
-        });
-
-        $.setText(entry, `update.ui.imagecrop — ${describeGeometry()}`);
-        $.prepend(log, entry);
-
-        if (log.children.length > 20) {
-            $.remove(log.lastElementChild);
-        }
-    });
-
-    $.addEvent('#clear-events', 'click', () => {
-        $.empty(log);
+        logEvent(`update.ui.imagecrop — ${describeGeometry()}`);
     });
 
     $('[data-rotate]').addEvent('click', (event) => {
@@ -309,8 +330,8 @@ $.ready(() => {
                 hidden: false,
             });
 
-            const width = preview.naturalWidth || preview.width;
-            const height = preview.naturalHeight || preview.height;
+            const width = $.getProperty(preview, 'naturalWidth') || $.getProperty(preview, 'width');
+            const height = $.getProperty(preview, 'naturalHeight') || $.getProperty(preview, 'height');
             const size = `${blob.size.toLocaleString()} bytes${type === 'canvas' ? ' (PNG download)' : ''}`;
 
             $.setText('#result-status', `${type} · ${width} × ${height} pixels · ${blob.type} · ${size}`);
@@ -328,6 +349,5 @@ $.ready(() => {
         }
     });
 
-    setTheme(document.documentElement.dataset.uiTheme || 'system');
     loadSample();
 });

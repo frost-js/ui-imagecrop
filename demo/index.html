@@ -34,7 +34,7 @@
     <main class="container py-4 py-lg-5" id="top">
         <section class="card border-0 overflow-hidden shadow-lg mb-5">
             <div class="card-body p-4 p-md-5 bg-ambient">
-                <span class="badge bg-primary-subtle text-primary-subtle mb-3">Frost UI v4 component</span>
+                <span class="badge bg-primary-subtle text-primary-subtle mb-3">Frost UI component</span>
                 <h1 class="display-2 mb-4">Make the <span class="text-gradient">crop yours.</span></h1>
                 <p class="lead text-body-secondary mb-4">Choose an image, frame the details, and export a crop. Try rotation, circular masks, resizing, and automatic camera orientation.</p>
                 <nav class="d-flex flex-wrap gap-2" aria-label="Demo sections">
@@ -82,7 +82,7 @@
                     </div>
                 </div>
                 <div class="col-lg-5 d-flex flex-column gap-4">
-                    <div class="card card-body p-4" id="methods-events">
+                    <div class="card card-body p-4 demo-anchor" id="methods-events">
                         <h3 class="h5">Control the selected region</h3>
                         <p class="small text-body-secondary">Bounds use source pixels after orientation and rotation. Limits may adjust the requested crop.</p>
                         <form id="bounds-form">
@@ -159,15 +159,15 @@
                         </fieldset>
                         <p class="form-text">When resizing is enabled, drag the blue bottom-right handle. Use the bounds fields above to resize with a keyboard. The demo caps the viewport at 480 × 400 pixels.</p>
                         <div class="d-flex flex-wrap gap-2 mt-auto">
-                            <button class="btn btn-outline-primary ripple" id="crop-init" type="button" disabled>Initialize</button>
+                            <button class="btn btn-primary ripple" id="crop-init" type="button" disabled>Init</button>
                             <button class="btn btn-outline-danger ripple" id="crop-dispose" type="button" disabled>Dispose</button>
                         </div>
                     </div>
                     <div class="card card-body p-4">
                         <h3 class="h5">Update events</h3>
-                        <p class="small text-body-secondary">The latest 20 <code>update.ui.imagecrop</code> events. Loading and exporting do not emit updates.</p>
-                        <div class="demo-event-log overflow-auto border rounded-3 p-3" id="event-log" aria-label="Recent crop updates"></div>
-                        <button class="btn btn-outline-secondary ripple mt-3 align-self-start" id="clear-events" type="button">Clear log</button>
+                        <p class="small text-body-secondary">The latest 50 <code>update.ui.imagecrop</code> events. Loading and exporting do not emit updates.</p>
+                        <div class="demo-event-log border rounded-3 p-3" id="event-log" role="log" aria-label="ImageCrop events" aria-live="polite" aria-relevant="additions"></div>
+                        <button class="btn btn-outline-secondary btn-sm ripple mt-3 align-self-start" id="clear-log" type="button">Clear log</button>
                     </div>
                 </div>
             </div>
