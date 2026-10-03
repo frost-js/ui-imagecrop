@@ -544,21 +544,21 @@ export default class ImageCrop extends BaseComponent {
         let lastPos;
         let image;
 
-        const downEvent = (e) => {
-            if (e.button || !this.node || !this.#img || this.#cancelLoad) {
+        const downEvent = (event) => {
+            if (event.button || !this.node || !this.#img || this.#cancelLoad) {
                 return false;
             }
 
             image = this.#img;
-            lastPos = getPosition(e);
+            lastPos = getPosition(event);
         };
 
-        const moveEvent = (e) => {
+        const moveEvent = (event) => {
             if (!this.node || this.#img !== image || this.#cancelLoad) {
                 return;
             }
 
-            const newPos = getPosition(e);
+            const newPos = getPosition(event);
 
             this.#offsetX += (newPos.x - lastPos.x) / this.#zoom;
             this.#offsetY += (newPos.y - lastPos.y) / this.#zoom;
@@ -574,10 +574,10 @@ export default class ImageCrop extends BaseComponent {
 
         $.addEvent(this.#container, 'mousedown.ui.imagecrop touchstart.ui.imagecrop', dragEvent);
 
-        $.addEvent(this.#container, 'touchend.ui.imagecrop', (e) => {
-            if (e.touches.length === 1) {
+        $.addEvent(this.#container, 'touchend.ui.imagecrop', (event) => {
+            if (event.touches.length === 1) {
                 // Resume panning from the remaining finger's position.
-                lastPos = getPosition(e);
+                lastPos = getPosition(event);
             }
         });
 
@@ -585,23 +585,23 @@ export default class ImageCrop extends BaseComponent {
             let lastPos;
             let image;
 
-            const downEvent = (e) => {
-                if (e.button || !this.node || !this.#img || this.#cancelLoad) {
+            const downEvent = (event) => {
+                if (event.button || !this.node || !this.#img || this.#cancelLoad) {
                     return false;
                 }
 
-                e.stopPropagation();
+                event.stopPropagation();
 
                 image = this.#img;
-                lastPos = getPosition(e);
+                lastPos = getPosition(event);
             };
 
-            const moveEvent = (e) => {
+            const moveEvent = (event) => {
                 if (!this.node || this.#img !== image || this.#cancelLoad) {
                     return;
                 }
 
-                const newPos = getPosition(e);
+                const newPos = getPosition(event);
                 const width = this.#previewWidth + newPos.x - lastPos.x;
                 const height = this.#previewHeight + newPos.y - lastPos.y;
 
@@ -622,21 +622,21 @@ export default class ImageCrop extends BaseComponent {
             let lastDist;
             let image;
 
-            const downEvent = (e) => {
+            const downEvent = (event) => {
                 if (!this.node || !this.#img || this.#cancelLoad) {
                     return false;
                 }
 
                 image = this.#img;
-                lastDist = getTouchDistance(e);
+                lastDist = getTouchDistance(event);
             };
 
-            const moveEvent = (e) => {
+            const moveEvent = (event) => {
                 if (!this.node || this.#img !== image || this.#cancelLoad) {
                     return;
                 }
 
-                const newDist = getTouchDistance(e);
+                const newDist = getTouchDistance(event);
                 const diff = newDist - lastDist;
 
                 lastDist = newDist;
@@ -654,16 +654,16 @@ export default class ImageCrop extends BaseComponent {
 
             $.addEvent(this.#container, 'touchstart.ui.imagecrop', dragEvent);
 
-            $.addEvent(this.#container, 'wheel.ui.imagecrop', (e) => {
+            $.addEvent(this.#container, 'wheel.ui.imagecrop', (event) => {
                 if (!this.node || !this.#img || this.#cancelLoad) {
                     return;
                 }
 
-                e.preventDefault();
+                event.preventDefault();
 
-                if (e.deltaY > 0) {
+                if (event.deltaY > 0) {
                     this.#zoom -= this.options.zoomAmount;
-                } else if (e.deltaY < 0) {
+                } else if (event.deltaY < 0) {
                     this.#zoom += this.options.zoomAmount;
                 }
 

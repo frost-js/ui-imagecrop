@@ -79,11 +79,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	}
 	/**
 	* Gets the distance between the first two active touches.
-	* @param {TouchEvent} e The touch event with at least two active touches.
+	* @param {TouchEvent} event The touch event with at least two active touches.
 	* @returns {number} The distance in pixels.
 	*/
-	function getTouchDistance(e) {
-		const touches = (0, _fr0st_ui.getTouchPositions)(e);
+	function getTouchDistance(event) {
+		const touches = (0, _fr0st_ui.getTouchPositions)(event);
 		return _fr0st_query.default._dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
 	}
 
@@ -475,14 +475,14 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#events() {
 			let lastPos;
 			let image;
-			const downEvent = (e) => {
-				if (e.button || !this.node || !this.#img || this.#cancelLoad) return false;
+			const downEvent = (event) => {
+				if (event.button || !this.node || !this.#img || this.#cancelLoad) return false;
 				image = this.#img;
-				lastPos = (0, _fr0st_ui.getPosition)(e);
+				lastPos = (0, _fr0st_ui.getPosition)(event);
 			};
-			const moveEvent = (e) => {
+			const moveEvent = (event) => {
 				if (!this.node || this.#img !== image || this.#cancelLoad) return;
-				const newPos = (0, _fr0st_ui.getPosition)(e);
+				const newPos = (0, _fr0st_ui.getPosition)(event);
 				this.#offsetX += (newPos.x - lastPos.x) / this.#zoom;
 				this.#offsetY += (newPos.y - lastPos.y) / this.#zoom;
 				lastPos = newPos;
@@ -492,21 +492,21 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			};
 			const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent);
 			_fr0st_query.default.addEvent(this.#container, "mousedown.ui.imagecrop touchstart.ui.imagecrop", dragEvent);
-			_fr0st_query.default.addEvent(this.#container, "touchend.ui.imagecrop", (e) => {
-				if (e.touches.length === 1) lastPos = (0, _fr0st_ui.getPosition)(e);
+			_fr0st_query.default.addEvent(this.#container, "touchend.ui.imagecrop", (event) => {
+				if (event.touches.length === 1) lastPos = (0, _fr0st_ui.getPosition)(event);
 			});
 			if (this.options.resize) {
 				let lastPos;
 				let image;
-				const downEvent = (e) => {
-					if (e.button || !this.node || !this.#img || this.#cancelLoad) return false;
-					e.stopPropagation();
+				const downEvent = (event) => {
+					if (event.button || !this.node || !this.#img || this.#cancelLoad) return false;
+					event.stopPropagation();
 					image = this.#img;
-					lastPos = (0, _fr0st_ui.getPosition)(e);
+					lastPos = (0, _fr0st_ui.getPosition)(event);
 				};
-				const moveEvent = (e) => {
+				const moveEvent = (event) => {
 					if (!this.node || this.#img !== image || this.#cancelLoad) return;
-					const newPos = (0, _fr0st_ui.getPosition)(e);
+					const newPos = (0, _fr0st_ui.getPosition)(event);
 					const width = this.#previewWidth + newPos.x - lastPos.x;
 					const height = this.#previewHeight + newPos.y - lastPos.y;
 					lastPos = newPos;
@@ -520,14 +520,14 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (this.options.zoom) {
 				let lastDist;
 				let image;
-				const downEvent = (e) => {
+				const downEvent = (event) => {
 					if (!this.node || !this.#img || this.#cancelLoad) return false;
 					image = this.#img;
-					lastDist = getTouchDistance(e);
+					lastDist = getTouchDistance(event);
 				};
-				const moveEvent = (e) => {
+				const moveEvent = (event) => {
 					if (!this.node || this.#img !== image || this.#cancelLoad) return;
-					const newDist = getTouchDistance(e);
+					const newDist = getTouchDistance(event);
 					const diff = newDist - lastDist;
 					lastDist = newDist;
 					this.#zoom += diff / _fr0st_query.default._dist(0, 0, this.#previewWidth, this.#previewHeight);
@@ -538,11 +538,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				};
 				const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent, null, { touches: 2 });
 				_fr0st_query.default.addEvent(this.#container, "touchstart.ui.imagecrop", dragEvent);
-				_fr0st_query.default.addEvent(this.#container, "wheel.ui.imagecrop", (e) => {
+				_fr0st_query.default.addEvent(this.#container, "wheel.ui.imagecrop", (event) => {
 					if (!this.node || !this.#img || this.#cancelLoad) return;
-					e.preventDefault();
-					if (e.deltaY > 0) this.#zoom -= this.options.zoomAmount;
-					else if (e.deltaY < 0) this.#zoom += this.options.zoomAmount;
+					event.preventDefault();
+					if (event.deltaY > 0) this.#zoom -= this.options.zoomAmount;
+					else if (event.deltaY < 0) this.#zoom += this.options.zoomAmount;
 					this.#clampZoom();
 					this.#clampOffset();
 					this.#updatePreview();

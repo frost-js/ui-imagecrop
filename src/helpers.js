@@ -37,8 +37,12 @@ export function getOrientation(data, reset = false) {
 
         const start = offset + 4;
         offset = end;
-        if (marker !== 0xffe1 || length < 8 ||
-            view.getUint32(start) !== 0x45786966 || view.getUint16(start + 4) !== 0) {
+        if (
+            marker !== 0xffe1 ||
+            length < 8 ||
+            view.getUint32(start) !== 0x45786966 ||
+            view.getUint16(start + 4) !== 0
+        ) {
             continue;
         }
 
@@ -79,15 +83,15 @@ export function getOrientation(data, reset = false) {
     }
 
     return 1;
-};
+}
 
 /**
  * Gets the distance between the first two active touches.
- * @param {TouchEvent} e The touch event with at least two active touches.
+ * @param {TouchEvent} event The touch event with at least two active touches.
  * @returns {number} The distance in pixels.
  */
-export function getTouchDistance(e) {
-    const touches = getTouchPositions(e);
+export function getTouchDistance(event) {
+    const touches = getTouchPositions(event);
 
     return $._dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
-};
+}
