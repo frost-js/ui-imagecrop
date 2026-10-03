@@ -1,9 +1,7 @@
 /** @import { Page } from '@playwright/test'; */
-
 /**
- * Installs a touch-event factory for browser gesture tests.
- * @param {Page} page The Playwright page.
- * @returns {Promise<void>} The promise.
+ * Installs synthetic touch events on the test page.
+ * @param {Page} page The test page.
  */
 export async function setupTouchEvents(page) {
     await page.evaluate(() => {

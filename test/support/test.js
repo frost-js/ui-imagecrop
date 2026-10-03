@@ -21,7 +21,7 @@ const test = base.extend({
                 waitUntil: 'domcontentloaded',
             });
 
-            await page.evaluate((_) => {
+            await page.evaluate(() => {
                 if (
                     !window.fQuery ||
                     !window.UI?.ImageCrop ||
@@ -34,7 +34,7 @@ const test = base.extend({
                 document.body.replaceChildren();
             });
 
-            await page.waitForFunction((_) => {
+            await page.waitForFunction(() => {
                 const node = document.createElement('div');
                 node.className = 'text-center';
                 document.body.append(node);

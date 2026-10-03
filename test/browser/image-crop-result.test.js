@@ -5,14 +5,14 @@ import { createImage, readPixels } from '../support/image.js';
 test.describe('ImageCrop results', () => {
     test.beforeEach(async ({ page }) => {
         await page.evaluate(() => {
-            document.body.innerHTML = '<div id="crop"></div>';
+            $.setHtml(document.body, '<div id="crop"></div>');
         });
 
         const file = await createImage(page, { quadrants: true });
 
         await page.evaluate(async (file) => {
             window.imageFile = file;
-            await UI.ImageCrop.init(document.querySelector('#crop'), { previewWidth: 320, previewHeight: 240 }).load(file);
+            await UI.ImageCrop.init($.findOne('#crop'), { previewWidth: 320, previewHeight: 240 }).load(file);
         }, file);
     });
 
@@ -43,7 +43,7 @@ test.describe('ImageCrop results', () => {
 
                             image.src = url;
                             await image.decode();
-                            canvas = document.createElement('canvas');
+                            canvas = $.create('canvas');
                             canvas.width = image.naturalWidth;
                             canvas.height = image.naturalHeight;
                             canvas.getContext('2d').drawImage(image, 0, 0);
@@ -54,8 +54,8 @@ test.describe('ImageCrop results', () => {
                         }
                     }
 
-                    canvas.id = 'result';
-                    document.body.append(canvas);
+                    $.setProperty(canvas, 'id', 'result');
+                    $.append(document.body, canvas);
 
                     return mime;
                 }, { type, format });
@@ -149,8 +149,8 @@ test.describe('ImageCrop results', () => {
                 await page.evaluate(async (size) => {
                     const result = await $.getData('#crop', 'imagecrop').result({ type: 'canvas', size });
 
-                    result.id = 'result';
-                    document.body.append(result);
+                    $.setProperty(result, 'id', 'result');
+                    $.append(document.body, result);
                 }, size);
 
                 await expect(page.locator('#result')).toHaveAttribute('width', `${width}`);
@@ -166,8 +166,8 @@ test.describe('ImageCrop results', () => {
 
                 const result = await crop.result({ type: 'canvas', size: 'original' });
 
-                result.id = 'result';
-                document.body.append(result);
+                $.setProperty(result, 'id', 'result');
+                $.append(document.body, result);
             });
 
             await expect(page.locator('#result')).toHaveAttribute('width', '160');
@@ -210,14 +210,14 @@ test.describe('ImageCrop results', () => {
                 await page.evaluate(async ({ options, size }) => {
                     $.getData('#crop', 'imagecrop').dispose();
 
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), { ...options, previewWidth: 320, previewHeight: 240 });
+                    const crop = UI.ImageCrop.init($.findOne('#crop'), { ...options, previewWidth: 320, previewHeight: 240 });
 
                     await crop.load(window.imageFile);
 
                     const result = await crop.result({ type: 'canvas', size });
 
-                    result.id = 'result';
-                    document.body.append(result);
+                    $.setProperty(result, 'id', 'result');
+                    $.append(document.body, result);
                 }, { options, size });
 
                 await expect(page.locator('#result')).toHaveAttribute('width', `${width}`);
@@ -236,8 +236,8 @@ test.describe('ImageCrop results', () => {
 
                 image.src = low;
                 await image.decode();
-                image.id = 'result';
-                document.body.append(image);
+                $.setProperty(image, 'id', 'result');
+                $.append(document.body, image);
 
                 return high === low;
             });
@@ -259,7 +259,7 @@ test.describe('ImageCrop results', () => {
                 const canvas = await page.evaluateHandle(async (background) => {
                     $.getData('#crop', 'imagecrop').dispose();
 
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), { previewWidth: 320, previewHeight: 240, enforceBoundary: false });
+                    const crop = UI.ImageCrop.init($.findOne('#crop'), { previewWidth: 320, previewHeight: 240, enforceBoundary: false });
 
                     await crop.load(window.imageFile);
                     crop.setBounds(-160, -120, 480, 360);
@@ -284,7 +284,7 @@ test.describe('ImageCrop results', () => {
                 const canvas = await page.evaluateHandle(async (source) => {
                     $.getData('#crop', 'imagecrop').dispose();
 
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), { circle: source === 'component' });
+                    const crop = UI.ImageCrop.init($.findOne('#crop'), { circle: source === 'component' });
 
                     await crop.load(window.imageFile);
 

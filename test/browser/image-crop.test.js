@@ -4,8 +4,8 @@ import { createImage } from '../support/image.js';
 
 test.describe('ImageCrop', () => {
     test.beforeEach(async ({ page }) => {
-        await page.evaluate((_) => {
-            document.body.innerHTML = '<div id="crop"><span>Existing content</span></div><div id="crop2"></div>';
+        await page.evaluate(() => {
+            $.setHtml(document.body, '<div id="crop"><span>Existing content</span></div><div id="crop2"></div>');
         });
 
         const file = await createImage(page);
@@ -17,7 +17,7 @@ test.describe('ImageCrop', () => {
 
     test.describe('#init', () => {
         for (const { name, init } of [
-            { name: 'class', init: () => UI.ImageCrop.init(document.querySelector('#crop')) },
+            { name: 'class', init: () => UI.ImageCrop.init($.findOne('#crop')) },
             { name: 'QuerySet', init: () => $('#crop').imagecrop() },
         ]) {
             test(`creates and registers an ImageCrop (${name})`, async ({ page }) => {
@@ -39,7 +39,7 @@ test.describe('ImageCrop', () => {
         });
 
         test('reuses an existing instance without changing its options', async ({ page }) => {
-            const instance = await page.evaluateHandle(() => UI.ImageCrop.init(document.querySelector('#crop'), { circle: true }));
+            const instance = await page.evaluateHandle(() => UI.ImageCrop.init($.findOne('#crop'), { circle: true }));
 
             expect(await instance.evaluate((value) => UI.ImageCrop.init(value.node, { circle: false }) === value)).toBe(true);
             await expect(page.locator('#crop .overflow-hidden')).toHaveClass(/rounded-circle/);
@@ -47,11 +47,11 @@ test.describe('ImageCrop', () => {
         });
 
         test('exposes frozen options with explicit values taking precedence over data attributes', async ({ page }) => {
-            const instance = await page.evaluateHandle((_) => {
-                const node = document.querySelector('#crop');
+            const instance = await page.evaluateHandle(() => {
+                const node = $.findOne('#crop');
 
-                node.dataset.uiCircle = 'true';
-                node.dataset.uiPreviewWidth = '200';
+                $.setDataset(node, 'uiCircle', true);
+                $.setDataset(node, 'uiPreviewWidth', 200);
 
                 return UI.ImageCrop.init(node, { previewWidth: 250 });
             });
@@ -70,10 +70,10 @@ test.describe('ImageCrop', () => {
             { name: 'reversed zoom limits', options: { minZoom: 2, maxZoom: 1 } },
         ]) {
             test(`cleans up failed initialization with ${name}`, async ({ page }) => {
-                await expect(page.evaluate((options) => UI.ImageCrop.init(document.querySelector('#crop'), options), options)).rejects.toThrow();
+                await expect(page.evaluate((options) => UI.ImageCrop.init($.findOne('#crop'), options), options)).rejects.toThrow();
                 expect(await page.evaluate(() => $.hasData('#crop', 'imagecrop'))).toBe(false);
                 await expect(page.locator('#crop canvas')).toHaveCount(0);
-                await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
+                await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
                 await expect(page.locator('#crop canvas')).toHaveCount(1);
             });
         }
@@ -85,7 +85,7 @@ test.describe('ImageCrop', () => {
             { name: 'QuerySet', dispose: () => $('#crop').imagecrop('dispose') },
         ]) {
             test(`removes the component and preserves existing content (${name})`, async ({ page }) => {
-                const instance = await page.evaluateHandle(() => UI.ImageCrop.init(document.querySelector('#crop')));
+                const instance = await page.evaluateHandle(() => UI.ImageCrop.init($.findOne('#crop')));
 
                 await page.evaluate(dispose, instance);
                 expect(await instance.evaluate((value) => value.node)).toBeNull();
@@ -97,19 +97,19 @@ test.describe('ImageCrop', () => {
         }
 
         test('is repeatable and allows reinitialization', async ({ page }) => {
-            await page.evaluate((_) => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+            await page.evaluate(() => {
+                const crop = UI.ImageCrop.init($.findOne('#crop'));
 
                 crop.dispose();
                 crop.dispose();
-                UI.ImageCrop.init(document.querySelector('#crop'));
+                UI.ImageCrop.init($.findOne('#crop'));
             });
 
             await expect(page.locator('#crop canvas')).toHaveCount(1);
         });
 
         test('disposes when fQuery removes the host', async ({ page }) => {
-            const instance = await page.evaluateHandle(() => UI.ImageCrop.init(document.querySelector('#crop')));
+            const instance = await page.evaluateHandle(() => UI.ImageCrop.init($.findOne('#crop')));
 
             await page.evaluate(() => $.remove('#crop'));
             expect(await instance.evaluate((value) => value.node)).toBeNull();
@@ -118,7 +118,7 @@ test.describe('ImageCrop', () => {
 
         test('rejects an outstanding file read with AbortError', async ({ page }) => {
             expect(await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                const crop = UI.ImageCrop.init($.findOne('#crop'));
                 const pending = crop.load(window.imageFile).catch((error) => error.name);
 
                 crop.dispose();
@@ -129,8 +129,8 @@ test.describe('ImageCrop', () => {
         });
 
         test('rejects an outstanding decode and revokes its URL', async ({ page }) => {
-            const state = await page.evaluateHandle(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+            const state = await page.evaluate(async () => {
+                const crop = UI.ImageCrop.init($.findOne('#crop'));
                 const create = URL.createObjectURL;
                 const revoke = URL.revokeObjectURL;
                 const revoked = [];
@@ -158,8 +158,8 @@ test.describe('ImageCrop', () => {
                 }
             });
 
-            expect(await state.evaluate((value) => value.error)).toBe('AbortError');
-            expect(await state.evaluate((value) => value.revoked.includes(value.created))).toBe(true);
+            expect(state.error).toBe('AbortError');
+            expect(state.revoked).toContain(state.created);
             await expect(page.locator('#crop canvas')).toHaveCount(0);
         });
 
@@ -168,7 +168,7 @@ test.describe('ImageCrop', () => {
 
             page.on('pageerror', (error) => errors.push(error.message));
             await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                const crop = UI.ImageCrop.init($.findOne('#crop'));
 
                 await crop.load(window.imageFile);
             });
@@ -184,7 +184,7 @@ test.describe('ImageCrop', () => {
 
     test.describe('#load', () => {
         for (const { name, load } of [
-            { name: 'class', load: () => UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile) },
+            { name: 'class', load: () => UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile) },
             { name: 'QuerySet', load: () => $('#crop').imagecrop('load', window.imageFile) },
         ]) {
             test(`loads an image and sizes the viewport (${name})`, async ({ page }) => {
@@ -198,7 +198,7 @@ test.describe('ImageCrop', () => {
 
         test('uses explicit source offsets and zoom', async ({ page }) => {
             const bounds = await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                const crop = UI.ImageCrop.init($.findOne('#crop'));
 
                 await crop.load(window.imageFile, { x: 400, y: 250, zoom: 1 });
 
@@ -214,7 +214,7 @@ test.describe('ImageCrop', () => {
             const mirrored = await createImage(page, { orientation: 2 });
 
             await page.evaluate(async (file) => {
-                await UI.ImageCrop.init(document.querySelector('#crop')).load(file);
+                await UI.ImageCrop.init($.findOne('#crop')).load(file);
             }, mirrored);
 
             expect(await page.locator('#crop canvas').evaluate((canvas) => canvas.getContext('2d').getImageData(50, 50, 1, 1).data[2])).toBeGreaterThan(240);
@@ -227,7 +227,7 @@ test.describe('ImageCrop', () => {
             const replacement = await createImage(page, { width: 320, height: 240 });
 
             expect(await page.evaluate(async (file) => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                const crop = UI.ImageCrop.init($.findOne('#crop'));
                 const pending = crop.load(window.imageFile).catch((error) => error.name);
 
                 await crop.load(file);
@@ -240,12 +240,12 @@ test.describe('ImageCrop', () => {
         });
 
         test('rejects input that is not a Blob', async ({ page }) => {
-            await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
+            await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
             await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').load(null))).rejects.toThrow('Blob');
         });
 
         test('rejects zero initial zoom', async ({ page }) => {
-            await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
+            await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
             await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').load(window.imageFile, { zoom: 0 }))).rejects.toThrow('positive');
         });
 
@@ -257,7 +257,7 @@ test.describe('ImageCrop', () => {
         ]) {
             test(`rejects ${name} and preserves the previous image`, async ({ page }) => {
                 await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
                 });
 
                 const previous = await page.locator('#crop canvas').evaluate((canvas) => canvas.toDataURL());
@@ -274,7 +274,7 @@ test.describe('ImageCrop', () => {
 
         test('rejects images without dimensions and preserves the previous image', async ({ page }) => {
             await page.evaluate(async () => {
-                await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
             });
 
             await expect(page.evaluate(() => {
@@ -289,7 +289,7 @@ test.describe('ImageCrop', () => {
         for (const failure of ['error', 'abort', 'throw']) {
             test(`recovers from a file reader ${failure}`, async ({ page }) => {
                 await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
                 });
 
                 await expect(page.evaluate(async (failure) => {
@@ -318,7 +318,7 @@ test.describe('ImageCrop', () => {
         }
 
         test('rejects loading after disposal', async ({ page }) => {
-            const instance = await page.evaluateHandle(() => UI.ImageCrop.init(document.querySelector('#crop')));
+            const instance = await page.evaluateHandle(() => UI.ImageCrop.init($.findOne('#crop')));
 
             await instance.evaluate((value) => value.dispose());
             await expect(instance.evaluate((value) => value.load(window.imageFile))).rejects.toThrow('disposed');
@@ -332,7 +332,7 @@ test.describe('ImageCrop', () => {
         ]) {
             test(`returns source coordinates (${name})`, async ({ page }) => {
                 await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
                 });
 
                 const bounds = await page.evaluate(get);
@@ -344,7 +344,7 @@ test.describe('ImageCrop', () => {
         }
 
         test('rejects calls before loading an image', async ({ page }) => {
-            await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
+            await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
             await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds())).rejects.toThrow('Load an image');
         });
     });
@@ -356,7 +356,7 @@ test.describe('ImageCrop', () => {
         ]) {
             test(`returns the fitted zoom (${name})`, async ({ page }) => {
                 await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
                 });
 
                 expect(await page.evaluate(get)).toBeCloseTo(0.625);
@@ -364,7 +364,7 @@ test.describe('ImageCrop', () => {
         }
 
         test('rejects calls before loading an image', async ({ page }) => {
-            await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
+            await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
             await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).rejects.toThrow('Load an image');
         });
     });
@@ -372,14 +372,14 @@ test.describe('ImageCrop', () => {
     test.describe('#result', () => {
         test('returns a canvas with numeric dimensions and the cropped image', async ({ page }) => {
             const canvas = await page.evaluateHandle(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                const crop = UI.ImageCrop.init($.findOne('#crop'));
 
                 await crop.load(window.imageFile);
 
                 const result = await crop.result({ type: 'canvas' });
 
-                result.id = 'result';
-                document.body.append(result);
+                $.setProperty(result, 'id', 'result');
+                $.append(document.body, result);
 
                 return result;
             });
@@ -404,7 +404,7 @@ test.describe('ImageCrop', () => {
             expect(await image.evaluate((value) => value.width)).toBe(300);
             expect(await image.evaluate((value) => value.height)).toBe(300);
             expect(await image.evaluate((value) => {
-                const canvas = document.createElement('canvas');
+                const canvas = $.create('canvas');
                 const context = canvas.getContext('2d');
 
                 context.drawImage(value, 0, 0);
@@ -415,7 +415,7 @@ test.describe('ImageCrop', () => {
         });
 
         test('rejects calls before loading an image', async ({ page }) => {
-            await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
+            await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
             await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').result())).rejects.toThrow('Load an image');
         });
     });
@@ -427,7 +427,7 @@ test.describe('ImageCrop', () => {
         ]) {
             test(`supports negative quarter turns (${name})`, async ({ page }) => {
                 await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
                 });
                 await page.evaluate(rotate);
                 await expect(page.locator('#crop canvas')).toHaveAttribute('width', '480');
@@ -438,7 +438,7 @@ test.describe('ImageCrop', () => {
 
         test('restores pixels and bounds after a complete turn', async ({ page }) => {
             await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                const crop = UI.ImageCrop.init($.findOne('#crop'));
 
                 await crop.load(window.imageFile, { zoom: 1 });
                 crop.setBounds(100, 50, 400, 350);
@@ -465,7 +465,7 @@ test.describe('ImageCrop', () => {
 
         test('reclamps offsets for a non-square viewport', async ({ page }) => {
             const bounds = await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { previewWidth: 300, previewHeight: 100 });
+                const crop = UI.ImageCrop.init($.findOne('#crop'), { previewWidth: 300, previewHeight: 100 });
 
                 await crop.load(window.imageFile, { zoom: 1 });
                 crop.setBounds(0, 0, 300, 100);
@@ -487,7 +487,7 @@ test.describe('ImageCrop', () => {
         ]) {
             test(`rejects ${name} without changing the image`, async ({ page }) => {
                 await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
                 });
 
                 await expect(page.evaluate((angle) => $.getData('#crop', 'imagecrop').rotate(angle), angle)).rejects.toThrow('multiple of 90');
@@ -497,7 +497,7 @@ test.describe('ImageCrop', () => {
         }
 
         test('rejects calls before loading an image', async ({ page }) => {
-            await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
+            await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
             await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').rotate())).rejects.toThrow('Load an image');
         });
     });
@@ -509,7 +509,7 @@ test.describe('ImageCrop', () => {
         ]) {
             test(`sets the crop coordinates (${name})`, async ({ page }) => {
                 await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
                 });
                 await page.evaluate(set);
 
@@ -523,7 +523,7 @@ test.describe('ImageCrop', () => {
 
         test('resizes the viewport at the current zoom', async ({ page }) => {
             const bounds = await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { resize: true });
+                const crop = UI.ImageCrop.init($.findOne('#crop'), { resize: true });
 
                 await crop.load(window.imageFile, { zoom: 1 });
                 crop.setBounds(100, 100, 300, 250);
@@ -541,7 +541,7 @@ test.describe('ImageCrop', () => {
 
         test('centers the requested bounds when zoom and resize are disabled', async ({ page }) => {
             const bounds = await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { zoom: false });
+                const crop = UI.ImageCrop.init($.findOne('#crop'), { zoom: false });
 
                 await crop.load(window.imageFile, { zoom: 1 });
                 crop.setBounds(100, 100, 300, 300);
@@ -561,7 +561,7 @@ test.describe('ImageCrop', () => {
         ]) {
             test(`rejects ${name} without mutating the crop`, async ({ page }) => {
                 await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
                 });
 
                 await expect(page.evaluate((bounds) => $.getData('#crop', 'imagecrop').setBounds(...bounds), bounds)).rejects.toThrow('positive');
@@ -571,7 +571,7 @@ test.describe('ImageCrop', () => {
         }
 
         test('rejects calls before loading an image', async ({ page }) => {
-            await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
+            await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
             await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').setBounds())).rejects.toThrow('Load an image');
         });
     });
@@ -583,7 +583,7 @@ test.describe('ImageCrop', () => {
         ]) {
             test(`sets the zoom (${name})`, async ({ page }) => {
                 await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
                 });
                 await page.evaluate(set);
                 expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBe(2);
@@ -599,7 +599,7 @@ test.describe('ImageCrop', () => {
         ]) {
             test(`rejects ${name} without mutating the crop`, async ({ page }) => {
                 await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile);
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
                 });
 
                 await expect(page.evaluate((zoom) => $.getData('#crop', 'imagecrop').setZoom(zoom), zoom)).rejects.toThrow('positive');
@@ -609,7 +609,7 @@ test.describe('ImageCrop', () => {
         }
 
         test('rejects calls before loading an image', async ({ page }) => {
-            await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
+            await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
             await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').setZoom())).rejects.toThrow('Load an image');
         });
     });
@@ -617,7 +617,7 @@ test.describe('ImageCrop', () => {
     test.describe('events', () => {
         test('does not emit an update when loading an image', async ({ page }) => {
             expect(await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                const crop = UI.ImageCrop.init($.findOne('#crop'));
                 let updates = 0;
 
                 $.addEvent(crop.node, 'update.ui.imagecrop', () => updates++);
@@ -636,7 +636,7 @@ test.describe('ImageCrop', () => {
         ]) {
             test(name, async ({ page }) => {
                 const instance = await page.evaluateHandle(async () => {
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                    const crop = UI.ImageCrop.init($.findOne('#crop'));
 
                     await crop.load(window.imageFile);
                     window.updates = 0;
@@ -657,7 +657,7 @@ test.describe('ImageCrop', () => {
 
                 page.on('pageerror', (error) => errors.push(error.message));
                 await page.evaluate(async (method) => {
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                    const crop = UI.ImageCrop.init($.findOne('#crop'));
 
                     await crop.load(window.imageFile);
                     $.addEvent(crop.node, 'update.ui.imagecrop', () => crop.dispose());
@@ -682,9 +682,9 @@ test.describe('ImageCrop', () => {
             for (const direction of ['ltr', 'rtl']) {
                 test(`pans with the mouse in ${direction}`, async ({ page }) => {
                     await page.evaluate(async (direction) => {
-                        document.documentElement.dir = direction;
+                        $.setProperty(document.documentElement, 'dir', direction);
 
-                        const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                        const crop = UI.ImageCrop.init($.findOne('#crop'));
 
                         await crop.load(window.imageFile, { zoom: 1 });
                         window.updates = 0;
@@ -712,7 +712,7 @@ test.describe('ImageCrop', () => {
 
             test('clamps dragging to the image boundary', async ({ page }) => {
                 await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile, { zoom: 1 });
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile, { zoom: 1 });
                 });
                 await page.locator('#crop .overflow-hidden').hover();
                 await page.mouse.down();
@@ -728,7 +728,7 @@ test.describe('ImageCrop', () => {
 
             test('ignores secondary-button dragging and resizing', async ({ page }) => {
                 await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop'), { resize: true }).load(window.imageFile, { zoom: 1 });
+                    await UI.ImageCrop.init($.findOne('#crop'), { resize: true }).load(window.imageFile, { zoom: 1 });
                 });
                 for (const selector of ['#crop .overflow-hidden', '#crop .top-100']) {
                     await page.locator(selector).hover();
@@ -746,7 +746,7 @@ test.describe('ImageCrop', () => {
         test.describe('wheel', () => {
             test('zooms in and out with the wheel', async ({ page }) => {
                 await page.evaluate(async () => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(window.imageFile, { zoom: 1 });
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile, { zoom: 1 });
                 });
                 await page.locator('#crop .overflow-hidden').hover();
                 await page.mouse.wheel(0, -100);
@@ -765,11 +765,11 @@ test.describe('ImageCrop', () => {
             ]) {
                 test(name, async ({ page }) => {
                     await page.evaluate(async ({ start, end }) => {
-                        const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                        const crop = UI.ImageCrop.init($.findOne('#crop'));
 
                         await crop.load(window.imageFile, { zoom: 1 });
 
-                        const container = document.querySelector('#crop .overflow-hidden');
+                        const container = $.findOne('#crop .overflow-hidden');
 
                         for (const [type, positions] of [['touchstart', start], ['touchmove', end], ['touchend', []]]) {
                             const event = window.createTouchEvent(type, positions);
@@ -794,12 +794,12 @@ test.describe('ImageCrop', () => {
             ]) {
                 test(`resumes panning from the remaining touch at ${remaining} with zoom ${zoom}`, async ({ page }) => {
                     const movement = await page.evaluate(async ({ remaining, zoom }) => {
-                        const crop = UI.ImageCrop.init(document.querySelector('#crop'), { zoom });
+                        const crop = UI.ImageCrop.init($.findOne('#crop'), { zoom });
 
                         await crop.load(window.imageFile, { zoom: 1 });
 
-                        const container = document.querySelector('#crop .overflow-hidden');
-                        const canvas = document.querySelector('#crop canvas');
+                        const container = $.findOne('#crop .overflow-hidden');
+                        const canvas = $.findOne('#crop canvas');
 
                         for (const [type, positions] of [
                             ['touchstart', [100]],
@@ -836,7 +836,7 @@ test.describe('ImageCrop', () => {
 
             test('stops pinch zoom after touch cancellation', async ({ page }) => {
                 const zoom = await page.evaluate(async () => {
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'));
+                    const crop = UI.ImageCrop.init($.findOne('#crop'));
 
                     await crop.load(window.imageFile, { zoom: 1 });
 
@@ -847,7 +847,7 @@ test.describe('ImageCrop', () => {
                     ]) {
                         const event = window.createTouchEvent(type, positions);
 
-                        (type === 'touchstart' ? document.querySelector('#crop .overflow-hidden') : window).dispatchEvent(event);
+                        (type === 'touchstart' ? $.findOne('#crop .overflow-hidden') : window).dispatchEvent(event);
                         await Promise.resolve();
                     }
 
@@ -866,11 +866,11 @@ test.describe('ImageCrop', () => {
 
                         page.on('pageerror', (error) => errors.push(error.message));
                         await page.evaluate(async ({ gesture, action }) => {
-                            const crop = UI.ImageCrop.init(document.querySelector('#crop'), { resize: true });
+                            const crop = UI.ImageCrop.init($.findOne('#crop'), { resize: true });
 
                             await crop.load(window.imageFile, { zoom: 1 });
 
-                            const target = document.querySelector(gesture === 'resize' ? '#crop .top-100' : '#crop .overflow-hidden');
+                            const target = $.findOne(gesture === 'resize' ? '#crop .top-100' : '#crop .overflow-hidden');
 
                             target.dispatchEvent(gesture === 'pinch' ?
                                 window.createTouchEvent('touchstart', [100, 200]) :
@@ -907,9 +907,9 @@ test.describe('ImageCrop', () => {
             const errors = [];
 
             page.on('pageerror', (error) => errors.push(error.message));
-            await page.evaluate((_) => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { resize: true });
-                const container = document.querySelector('#crop .overflow-hidden');
+            await page.evaluate(() => {
+                const crop = UI.ImageCrop.init($.findOne('#crop'), { resize: true });
+                const container = $.findOne('#crop .overflow-hidden');
 
                 container.dispatchEvent(new WheelEvent('wheel', { deltaY: 1, bubbles: true }));
                 container.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
@@ -932,12 +932,12 @@ test.describe('ImageCrop', () => {
 
         test('disables programmatic, wheel, and pinch zoom', async ({ page }) => {
             await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { zoom: false });
+                const crop = UI.ImageCrop.init($.findOne('#crop'), { zoom: false });
 
                 await crop.load(window.imageFile, { zoom: 1 });
                 crop.setZoom(2);
 
-                const container = document.querySelector('#crop .overflow-hidden');
+                const container = $.findOne('#crop .overflow-hidden');
 
                 container.dispatchEvent(new WheelEvent('wheel', { deltaY: -100 }));
                 for (const [type, positions] of [['touchstart', [100, 200]], ['touchmove', [50, 250]], ['touchend', []]]) {
@@ -959,7 +959,7 @@ test.describe('ImageCrop', () => {
         test.describe(`${name} option`, () => {
             test('clamps programmatic zoom to the configured limit', async ({ page }) => {
                 await page.evaluate(async ({ options, requested }) => {
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), options);
+                    const crop = UI.ImageCrop.init($.findOne('#crop'), options);
 
                     await crop.load(window.imageFile);
                     crop.setZoom(requested);
@@ -973,7 +973,7 @@ test.describe('ImageCrop', () => {
     test.describe('zoomAmount option', () => {
         test('uses the configured wheel increment', async ({ page }) => {
             await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { zoomAmount: .25 });
+                const crop = UI.ImageCrop.init($.findOne('#crop'), { zoomAmount: .25 });
 
                 await crop.load(window.imageFile, { zoom: 1 });
             });
@@ -986,7 +986,7 @@ test.describe('ImageCrop', () => {
     test.describe('rotate option', () => {
         test('disables rotation', async ({ page }) => {
             await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { rotate: false });
+                const crop = UI.ImageCrop.init($.findOne('#crop'), { rotate: false });
 
                 await crop.load(window.imageFile);
                 crop.rotate();
@@ -1001,7 +1001,7 @@ test.describe('ImageCrop', () => {
     test.describe('enforceBoundary option', () => {
         test('allows zoom and bounds outside the image when disabled', async ({ page }) => {
             const bounds = await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { enforceBoundary: false });
+                const crop = UI.ImageCrop.init($.findOne('#crop'), { enforceBoundary: false });
 
                 await crop.load(window.imageFile);
                 crop.setBounds(-100, -100, 900, 900);
@@ -1017,13 +1017,13 @@ test.describe('ImageCrop', () => {
 
     test.describe('resize option', () => {
         test('has no resize handle when disabled', async ({ page }) => {
-            await page.evaluate(() => UI.ImageCrop.init(document.querySelector('#crop')));
+            await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
             await expect(page.locator('#crop .top-100')).toHaveCount(0);
         });
 
         test('limits resizing to the scaled image dimensions', async ({ page }) => {
             await page.evaluate(async () => {
-                await UI.ImageCrop.init(document.querySelector('#crop'), { resize: true }).load(window.imageFile, { zoom: .625 });
+                await UI.ImageCrop.init($.findOne('#crop'), { resize: true }).load(window.imageFile, { zoom: .625 });
             });
             await page.locator('#crop .top-100').hover();
             await page.mouse.down();
@@ -1036,9 +1036,9 @@ test.describe('ImageCrop', () => {
         for (const direction of ['ltr', 'rtl']) {
             test(`preserves the image position while resizing without boundary enforcement (${direction})`, async ({ page }) => {
                 await page.evaluate(async (direction) => {
-                    document.documentElement.dir = direction;
+                    $.setProperty(document.documentElement, 'dir', direction);
 
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), { resize: true, enforceBoundary: false });
+                    const crop = UI.ImageCrop.init($.findOne('#crop'), { resize: true, enforceBoundary: false });
 
                     await crop.load(window.imageFile);
                 }, direction);
@@ -1066,7 +1066,7 @@ test.describe('ImageCrop', () => {
 
         test('keeps dimensions positive when dragging past the minimum', async ({ page }) => {
             await page.evaluate(async () => {
-                const crop = UI.ImageCrop.init(document.querySelector('#crop'), { resize: true, enforceBoundary: false });
+                const crop = UI.ImageCrop.init($.findOne('#crop'), { resize: true, enforceBoundary: false });
 
                 await crop.load(window.imageFile);
             });
@@ -1089,7 +1089,7 @@ test.describe('ImageCrop', () => {
         test.describe(`${option} option`, () => {
             test(`limits initial and resized viewport ${dimension}`, async ({ page }) => {
                 await page.evaluate(async (option) => {
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), { resize: true, [option]: 200 });
+                    const crop = UI.ImageCrop.init($.findOne('#crop'), { resize: true, [option]: 200 });
 
                     await crop.load(window.imageFile, { zoom: 1 });
                 }, option);
@@ -1114,7 +1114,7 @@ test.describe('ImageCrop', () => {
                 const file = await createImage(page, { orientation: 6 });
 
                 await page.evaluate(async ({ file, enabled }) => {
-                    const crop = UI.ImageCrop.init(document.querySelector('#crop'), { exifOrientation: enabled });
+                    const crop = UI.ImageCrop.init($.findOne('#crop'), { exifOrientation: enabled });
 
                     await crop.load(file);
                 }, { file, enabled });

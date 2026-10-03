@@ -1,14 +1,19 @@
-/** @import { JSHandle, Locator, Page } from '@playwright/test'; */
-
+/** @import { JSHandle } from '@playwright/test'; */
+/** @import { Page } from '@playwright/test'; */
 /**
- * Creates an image with colored halves or quadrants, optionally carrying JPEG orientation.
- * @param {Page} page The Playwright page.
- * @param {{width?: number, height?: number, orientation?: number|null, littleEndian?: boolean, quadrants?: boolean}} [options] The fixture dimensions and orientation.
- * @returns {Promise<JSHandle<Blob>>} The image file in the browser.
+ * Creates a test image with optional EXIF orientation and colored quadrants.
+ * @param {Page} page The test page.
+ * @param {object} [options] The image options.
+ * @param {number} [options.width=640] The image width in pixels.
+ * @param {number} [options.height=480] The image height in pixels.
+ * @param {number|null} [options.orientation=null] The EXIF orientation, or null for a PNG.
+ * @param {boolean} [options.littleEndian=true] Whether to encode EXIF values in little endian order.
+ * @param {boolean} [options.quadrants=false] Whether to paint four colored quadrants.
+ * @returns {Promise<JSHandle<Blob>>} The generated image blob handle.
  */
 export async function createImage(page, { width = 640, height = 480, orientation = null, littleEndian = true, quadrants = false } = {}) {
     return page.evaluateHandle(async ({ width, height, orientation, littleEndian, quadrants }) => {
-        const canvas = document.createElement('canvas');
+        const canvas = $.create('canvas');
 
         canvas.width = width;
         canvas.height = height;

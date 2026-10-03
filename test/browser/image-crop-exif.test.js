@@ -22,7 +22,7 @@ const orientations = [
 test.describe('ImageCrop EXIF orientation', () => {
     test.beforeEach(async ({ page }) => {
         await page.evaluate(() => {
-            document.body.innerHTML = '<div id="crop"></div>';
+            $.setHtml(document.body, '<div id="crop"></div>');
         });
     });
 
@@ -37,14 +37,14 @@ test.describe('ImageCrop EXIF orientation', () => {
                     const height = orientation >= 5 ? 80 : 40;
 
                     await page.evaluate(async ({ file, width, height }) => {
-                        const crop = UI.ImageCrop.init(document.querySelector('#crop'), { previewWidth: width, previewHeight: height });
+                        const crop = UI.ImageCrop.init($.findOne('#crop'), { previewWidth: width, previewHeight: height });
 
                         await crop.load(file);
 
                         const result = await crop.result({ type: 'canvas' });
 
-                        result.id = 'result';
-                        document.body.append(result);
+                        $.setProperty(result, 'id', 'result');
+                        $.append(document.body, result);
                     }, { file, width, height });
 
                     await expect(page.locator('#crop canvas')).toHaveAttribute('width', `${width}`);
@@ -74,7 +74,7 @@ test.describe('ImageCrop EXIF orientation', () => {
                     const file = await createImage(page, { orientation });
 
                     await page.evaluate(async ({ file, zoom }) => {
-                        const crop = UI.ImageCrop.init(document.querySelector('#crop'), {
+                        const crop = UI.ImageCrop.init($.findOne('#crop'), {
                             previewWidth: 300,
                             previewHeight: 100,
                             enforceBoundary: false,
@@ -103,7 +103,7 @@ test.describe('ImageCrop EXIF orientation', () => {
                 const file = await createImage(page, { width: 80, height: 40, quadrants: true, orientation });
 
                 await page.evaluate(async (file) => {
-                    await UI.ImageCrop.init(document.querySelector('#crop'), { exifOrientation: false }).load(file);
+                    await UI.ImageCrop.init($.findOne('#crop'), { exifOrientation: false }).load(file);
                 }, file);
 
                 await expect(page.locator('#crop canvas')).toHaveAttribute('width', '80');
@@ -129,7 +129,7 @@ test.describe('ImageCrop EXIF orientation', () => {
                     const app = new Uint8Array([255, 239, 0, 4, 0, 0]);
                     const modified = new Blob([bytes.slice(0, 2), fill, app, fill, bytes.slice(2)], { type: 'image/jpeg' });
 
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(modified);
+                    await UI.ImageCrop.init($.findOne('#crop')).load(modified);
                 }, { file, padding });
 
                 const canvas = page.locator('#crop canvas');
@@ -164,7 +164,7 @@ test.describe('ImageCrop EXIF orientation', () => {
                 const xmp = new Uint8Array([255, 225, 0, 8, 88, 77, 80, 0, 0, 0]);
                 const modified = new Blob([data.slice(0, 2), xmp, data.slice(2)], { type: 'image/jpeg' });
 
-                await UI.ImageCrop.init(document.querySelector('#crop')).load(modified);
+                await UI.ImageCrop.init($.findOne('#crop')).load(modified);
             }, file);
 
             expect(await page.locator('#crop canvas').evaluate((canvas) =>
@@ -179,7 +179,7 @@ test.describe('ImageCrop EXIF orientation', () => {
                 const buffer = await file.arrayBuffer();
 
                 new DataView(buffer).setUint16(22, 0x0100, true);
-                await UI.ImageCrop.init(document.querySelector('#crop')).load(new Blob([buffer], { type: 'image/jpeg' }));
+                await UI.ImageCrop.init($.findOne('#crop')).load(new Blob([buffer], { type: 'image/jpeg' }));
             }, file);
 
             expect(await page.locator('#crop canvas').evaluate((canvas) =>
@@ -194,7 +194,7 @@ test.describe('ImageCrop EXIF orientation', () => {
         ]) {
             test(`rejects truncated JPEG ${name} after padding and can load a valid image afterward`, async ({ page }) => {
                 await expect(page.evaluate(async (bytes) => {
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }));
+                    await UI.ImageCrop.init($.findOne('#crop')).load(new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }));
                 }, bytes)).rejects.toThrow('Truncated JPEG metadata');
 
                 const file = await createImage(page);
@@ -222,7 +222,7 @@ test.describe('ImageCrop EXIF orientation', () => {
                     const buffer = await file.arrayBuffer();
 
                     new DataView(buffer)[`setUint${size}`](offset, value, little);
-                    await UI.ImageCrop.init(document.querySelector('#crop')).load(new Blob([buffer], { type: 'image/jpeg' }));
+                    await UI.ImageCrop.init($.findOne('#crop')).load(new Blob([buffer], { type: 'image/jpeg' }));
                 }, { file, offset, value, size, little })).rejects.toThrow(/JPEG|EXIF/);
                 await page.evaluate((file) => $.getData('#crop', 'imagecrop').load(file), file);
                 await expect(page.locator('#crop canvas')).toHaveAttribute('width', '640');
