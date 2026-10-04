@@ -41,11 +41,14 @@ test.describe('ImageCrop results', () => {
                         try {
                             const image = new Image();
 
-                            image.src = url;
+                            $.setProperty(image, 'src', url);
                             await image.decode();
-                            canvas = $.create('canvas');
-                            canvas.width = image.naturalWidth;
-                            canvas.height = image.naturalHeight;
+                            canvas = $.create('canvas', {
+                                attributes: {
+                                    width: $.getProperty(image, 'naturalWidth'),
+                                    height: $.getProperty(image, 'naturalHeight'),
+                                },
+                            });
                             canvas.getContext('2d').drawImage(image, 0, 0);
                         } finally {
                             if (type === 'blob') {
@@ -234,7 +237,7 @@ test.describe('ImageCrop results', () => {
                 const low = await crop.result({ format: 'jpeg', quality: .1 });
                 const image = new Image();
 
-                image.src = low;
+                $.setProperty(image, 'src', low);
                 await image.decode();
                 $.setProperty(image, 'id', 'result');
                 $.append(document.body, image);

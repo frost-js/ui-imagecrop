@@ -239,7 +239,9 @@ var ImageCrop = class extends BaseComponent {
 			reader.onabort = this.#cancelLoad;
 			image.onerror = () => fail(/* @__PURE__ */ new Error("Could not decode the image."));
 			image.onload = () => {
-				if (!image.naturalWidth || !image.naturalHeight) {
+				const width = $.getProperty(image, "naturalWidth");
+				const height = $.getProperty(image, "naturalHeight");
+				if (!width || !height) {
 					fail(/* @__PURE__ */ new Error("Image dimensions must be positive."));
 					return;
 				}
@@ -253,8 +255,8 @@ var ImageCrop = class extends BaseComponent {
 				].includes(orientation);
 				this.#previewWidth = Math.min(this.options.previewWidth, this.options.maxPreviewWidth ?? Infinity);
 				this.#previewHeight = Math.min(this.options.previewHeight, this.options.maxPreviewHeight ?? Infinity);
-				this.#canvasWidth = image.naturalWidth;
-				this.#canvasHeight = image.naturalHeight;
+				this.#canvasWidth = width;
+				this.#canvasHeight = height;
 				this.#offsetX = x ?? this.#canvasWidth / 2;
 				this.#offsetY = y ?? this.#canvasHeight / 2;
 				this.#updateRotation({
@@ -282,7 +284,7 @@ var ImageCrop = class extends BaseComponent {
 					orientation = getOrientation(reader.result, true);
 					if (!this.options.exifOrientation) orientation = 1;
 					url = URL.createObjectURL(new Blob([reader.result], { type: file.type }));
-					image.src = url;
+					$.setProperty(image, "src", url);
 				} catch (error) {
 					fail(error);
 				}
@@ -335,7 +337,7 @@ var ImageCrop = class extends BaseComponent {
 			width,
 			height
 		});
-		if (canvas.width !== width || canvas.height !== height) throw new RangeError("Output dimensions exceed the supported canvas size.");
+		if ($.getProperty(canvas, "width") !== width || $.getProperty(canvas, "height") !== height) throw new RangeError("Output dimensions exceed the supported canvas size.");
 		const [x1, y1, x2, y2] = this.getBounds();
 		context.drawImage(this.#canvas, x1, y1, x2 - x1, y2 - y1, 0, 0, width, height);
 		if (circle || this.options.circle) {
@@ -609,7 +611,9 @@ var ImageCrop = class extends BaseComponent {
 		this.#context.translate(this.#canvasWidth / 2, this.#canvasHeight / 2);
 		this.#context.rotate(this.#rotation * Math.PI / 180);
 		if (this.#flipped) this.#context.scale(-1, 1);
-		this.#context.drawImage(this.#img, -this.#img.width / 2, -this.#img.height / 2, this.#img.width, this.#img.height);
+		const width = $.getProperty(this.#img, "width");
+		const height = $.getProperty(this.#img, "height");
+		this.#context.drawImage(this.#img, -width / 2, -height / 2, width, height);
 		this.#context.restore();
 	}
 	/**

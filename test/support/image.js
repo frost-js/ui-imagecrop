@@ -13,10 +13,9 @@
  */
 export async function createImage(page, { width = 640, height = 480, orientation = null, littleEndian = true, quadrants = false } = {}) {
     return page.evaluateHandle(async ({ width, height, orientation, littleEndian, quadrants }) => {
-        const canvas = $.create('canvas');
-
-        canvas.width = width;
-        canvas.height = height;
+        const canvas = $.create('canvas', {
+            attributes: { width, height },
+        });
 
         const context = canvas.getContext('2d');
 

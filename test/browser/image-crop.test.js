@@ -813,13 +813,13 @@ test.describe('ImageCrop', () => {
                             await Promise.resolve();
                         }
 
-                        const before = canvas.getBoundingClientRect();
+                        const before = $.rect(canvas);
                         const move = window.createTouchEvent('touchmove', [remaining + 1], 102);
 
                         window.dispatchEvent(move);
                         await Promise.resolve();
 
-                        const after = canvas.getBoundingClientRect();
+                        const after = $.rect(canvas);
                         const end = window.createTouchEvent('touchend', []);
 
                         window.dispatchEvent(end);

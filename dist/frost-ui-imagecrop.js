@@ -271,7 +271,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				reader.onabort = this.#cancelLoad;
 				image.onerror = () => fail(/* @__PURE__ */ new Error("Could not decode the image."));
 				image.onload = () => {
-					if (!image.naturalWidth || !image.naturalHeight) {
+					const width = _fr0st_query.default.getProperty(image, "naturalWidth");
+					const height = _fr0st_query.default.getProperty(image, "naturalHeight");
+					if (!width || !height) {
 						fail(/* @__PURE__ */ new Error("Image dimensions must be positive."));
 						return;
 					}
@@ -285,8 +287,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					].includes(orientation);
 					this.#previewWidth = Math.min(this.options.previewWidth, this.options.maxPreviewWidth ?? Infinity);
 					this.#previewHeight = Math.min(this.options.previewHeight, this.options.maxPreviewHeight ?? Infinity);
-					this.#canvasWidth = image.naturalWidth;
-					this.#canvasHeight = image.naturalHeight;
+					this.#canvasWidth = width;
+					this.#canvasHeight = height;
 					this.#offsetX = x ?? this.#canvasWidth / 2;
 					this.#offsetY = y ?? this.#canvasHeight / 2;
 					this.#updateRotation({
@@ -314,7 +316,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 						orientation = getOrientation(reader.result, true);
 						if (!this.options.exifOrientation) orientation = 1;
 						url = URL.createObjectURL(new Blob([reader.result], { type: file.type }));
-						image.src = url;
+						_fr0st_query.default.setProperty(image, "src", url);
 					} catch (error) {
 						fail(error);
 					}
@@ -367,7 +369,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				width,
 				height
 			});
-			if (canvas.width !== width || canvas.height !== height) throw new RangeError("Output dimensions exceed the supported canvas size.");
+			if (_fr0st_query.default.getProperty(canvas, "width") !== width || _fr0st_query.default.getProperty(canvas, "height") !== height) throw new RangeError("Output dimensions exceed the supported canvas size.");
 			const [x1, y1, x2, y2] = this.getBounds();
 			context.drawImage(this.#canvas, x1, y1, x2 - x1, y2 - y1, 0, 0, width, height);
 			if (circle || this.options.circle) {
@@ -641,7 +643,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#context.translate(this.#canvasWidth / 2, this.#canvasHeight / 2);
 			this.#context.rotate(this.#rotation * Math.PI / 180);
 			if (this.#flipped) this.#context.scale(-1, 1);
-			this.#context.drawImage(this.#img, -this.#img.width / 2, -this.#img.height / 2, this.#img.width, this.#img.height);
+			const width = _fr0st_query.default.getProperty(this.#img, "width");
+			const height = _fr0st_query.default.getProperty(this.#img, "height");
+			this.#context.drawImage(this.#img, -width / 2, -height / 2, width, height);
 			this.#context.restore();
 		}
 		/**

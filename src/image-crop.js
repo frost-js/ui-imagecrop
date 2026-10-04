@@ -229,7 +229,10 @@ export default class ImageCrop extends BaseComponent {
             image.onerror = () => fail(new Error('Could not decode the image.'));
 
             image.onload = () => {
-                if (!image.naturalWidth || !image.naturalHeight) {
+                const width = $.getProperty(image, 'naturalWidth');
+                const height = $.getProperty(image, 'naturalHeight');
+
+                if (!width || !height) {
                     fail(new Error('Image dimensions must be positive.'));
                     return;
                 }
@@ -248,8 +251,8 @@ export default class ImageCrop extends BaseComponent {
                     this.options.maxPreviewHeight ?? Infinity,
                 );
 
-                this.#canvasWidth = image.naturalWidth;
-                this.#canvasHeight = image.naturalHeight;
+                this.#canvasWidth = width;
+                this.#canvasHeight = height;
                 this.#offsetX = x ?? this.#canvasWidth / 2;
                 this.#offsetY = y ?? this.#canvasHeight / 2;
 
@@ -287,7 +290,7 @@ export default class ImageCrop extends BaseComponent {
                     }
 
                     url = URL.createObjectURL(new Blob([reader.result], { type: file.type }));
-                    image.src = url;
+                    $.setProperty(image, 'src', url);
                 } catch (error) {
                     fail(error);
                 }
@@ -372,7 +375,7 @@ export default class ImageCrop extends BaseComponent {
 
         $.setAttribute(canvas, { width, height });
 
-        if (canvas.width !== width || canvas.height !== height) {
+        if ($.getProperty(canvas, 'width') !== width || $.getProperty(canvas, 'height') !== height) {
             throw new RangeError('Output dimensions exceed the supported canvas size.');
         }
 
@@ -809,12 +812,15 @@ export default class ImageCrop extends BaseComponent {
             this.#context.scale(-1, 1);
         }
 
+        const width = $.getProperty(this.#img, 'width');
+        const height = $.getProperty(this.#img, 'height');
+
         this.#context.drawImage(
             this.#img,
-            -this.#img.width / 2,
-            -this.#img.height / 2,
-            this.#img.width,
-            this.#img.height,
+            -width / 2,
+            -height / 2,
+            width,
+            height,
         );
         this.#context.restore();
     }
