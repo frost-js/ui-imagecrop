@@ -1,11 +1,11 @@
 # Frost UI ImageCrop
 
-[![CI](https://github.com/elusivecodes/FrostUI-ImageCrop/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/elusivecodes/FrostUI-ImageCrop/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/elusivecodes/FrostUI-ImageCrop/branch/main/graph/badge.svg)](https://codecov.io/gh/elusivecodes/FrostUI-ImageCrop)
+[![CI](https://github.com/frost-js/ui-imagecrop/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/frost-js/ui-imagecrop/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/frost-js/ui-imagecrop/branch/main/graph/badge.svg)](https://codecov.io/gh/frost-js/ui-imagecrop)
 [![npm version](https://img.shields.io/npm/v/%40fr0st%2Fui-imagecrop?style=flat-square)](https://www.npmjs.com/package/@fr0st/ui-imagecrop)
 [![npm downloads](https://img.shields.io/npm/dm/%40fr0st%2Fui-imagecrop?style=flat-square)](https://www.npmjs.com/package/@fr0st/ui-imagecrop)
-[![JS gzip size](https://img.badgesize.io/elusivecodes/FrostUI-ImageCrop/main/dist/frost-ui-imagecrop.min.js?compression=gzip&label=JS%20gzip%20size&style=flat-square)](https://github.com/elusivecodes/FrostUI-ImageCrop/blob/main/dist/frost-ui-imagecrop.min.js)
-[![license](https://img.shields.io/github/license/elusivecodes/FrostUI-ImageCrop?style=flat-square)](./LICENSE)
+[![JS gzip size](https://img.badgesize.io/frost-js/ui-imagecrop/main/dist/frost-ui-imagecrop.min.js?compression=gzip&label=JS%20gzip%20size&style=flat-square)](https://github.com/frost-js/ui-imagecrop/blob/main/dist/frost-ui-imagecrop.min.js)
+[![license](https://img.shields.io/github/license/frost-js/ui-imagecrop?style=flat-square)](./LICENSE)
 
 Image cropping for Frost UI with panning, zoom, quarter-turn rotation, resizing, EXIF orientation, and canvas or encoded image output.
 

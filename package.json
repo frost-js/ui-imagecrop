@@ -13,14 +13,14 @@
         "javascript",
         "ui"
     ],
-    "homepage": "https://github.com/elusivecodes/FrostUI-ImageCrop",
+    "homepage": "https://github.com/frost-js/ui-imagecrop",
     "bugs": {
-        "url": "https://github.com/elusivecodes/FrostUI-ImageCrop/issues",
+        "url": "https://github.com/frost-js/ui-imagecrop/issues",
         "email": "elusivecodes@gmail.com"
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/elusivecodes/FrostUI-ImageCrop.git"
+        "url": "git+https://github.com/frost-js/ui-imagecrop.git"
     },
     "license": "MIT",
     "author": "Elusive <elusivecodes@gmail.com>",
