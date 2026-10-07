@@ -152,20 +152,20 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			rotate: true,
 			enforceBoundary: true
 		};
-		#cancelLoad;
-		#canvas;
+		#cancelLoad = null;
+		#canvas = null;
 		#canvasHeight;
 		#canvasWidth;
-		#container;
-		#context;
+		#container = null;
+		#context = null;
 		#flipped;
-		#img;
+		#img = null;
 		#offsetX;
 		#offsetY;
-		#outerContainer;
+		#outerContainer = null;
 		#previewHeight;
 		#previewWidth;
-		#resize;
+		#resize = null;
 		#rotation;
 		#zoom;
 		/**
@@ -477,12 +477,12 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#events() {
 			let lastPos;
 			let image;
-			const downEvent = (event) => {
+			const downHandler = (event) => {
 				if (event.button || !this.node || !this.#img || this.#cancelLoad) return false;
 				image = this.#img;
 				lastPos = (0, _fr0st_ui.getPosition)(event);
 			};
-			const moveEvent = (event) => {
+			const moveHandler = (event) => {
 				if (!this.node || this.#img !== image || this.#cancelLoad) return;
 				const newPos = (0, _fr0st_ui.getPosition)(event);
 				this.#offsetX += (newPos.x - lastPos.x) / this.#zoom;
@@ -492,21 +492,21 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#updatePreview();
 				_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
 			};
-			const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent);
-			_fr0st_query.default.addEvent(this.#container, "mousedown.ui.imagecrop touchstart.ui.imagecrop", dragEvent);
+			const dragHandler = _fr0st_query.default.mouseDragFactory(downHandler, moveHandler);
+			_fr0st_query.default.addEvent(this.#container, "mousedown.ui.imagecrop touchstart.ui.imagecrop", dragHandler);
 			_fr0st_query.default.addEvent(this.#container, "touchend.ui.imagecrop", (event) => {
 				if (event.touches.length === 1) lastPos = (0, _fr0st_ui.getPosition)(event);
 			});
 			if (this.options.resize) {
 				let lastPos;
 				let image;
-				const downEvent = (event) => {
+				const downHandler = (event) => {
 					if (event.button || !this.node || !this.#img || this.#cancelLoad) return false;
 					event.stopPropagation();
 					image = this.#img;
 					lastPos = (0, _fr0st_ui.getPosition)(event);
 				};
-				const moveEvent = (event) => {
+				const moveHandler = (event) => {
 					if (!this.node || this.#img !== image || this.#cancelLoad) return;
 					const newPos = (0, _fr0st_ui.getPosition)(event);
 					const width = this.#previewWidth + newPos.x - lastPos.x;
@@ -516,18 +516,18 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					this.#updatePreview();
 					_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
 				};
-				const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent);
-				_fr0st_query.default.addEvent(this.#resize, "mousedown.ui.imagecrop", dragEvent);
+				const dragHandler = _fr0st_query.default.mouseDragFactory(downHandler, moveHandler);
+				_fr0st_query.default.addEvent(this.#resize, "mousedown.ui.imagecrop", dragHandler);
 			}
 			if (this.options.zoom) {
 				let lastDist;
 				let image;
-				const downEvent = (event) => {
+				const downHandler = (event) => {
 					if (!this.node || !this.#img || this.#cancelLoad) return false;
 					image = this.#img;
 					lastDist = getTouchDistance(event);
 				};
-				const moveEvent = (event) => {
+				const moveHandler = (event) => {
 					if (!this.node || this.#img !== image || this.#cancelLoad) return;
 					const newDist = getTouchDistance(event);
 					const diff = newDist - lastDist;
@@ -538,8 +538,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					this.#updatePreview();
 					_fr0st_query.default.triggerEvent(this.node, "update.ui.imagecrop");
 				};
-				const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent, null, { touches: 2 });
-				_fr0st_query.default.addEvent(this.#container, "touchstart.ui.imagecrop", dragEvent);
+				const dragHandler = _fr0st_query.default.mouseDragFactory(downHandler, moveHandler, null, { touches: 2 });
+				_fr0st_query.default.addEvent(this.#container, "touchstart.ui.imagecrop", dragHandler);
 				_fr0st_query.default.addEvent(this.#container, "wheel.ui.imagecrop", (event) => {
 					if (!this.node || !this.#img || this.#cancelLoad) return;
 					event.preventDefault();

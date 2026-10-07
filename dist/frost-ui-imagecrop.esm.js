@@ -120,20 +120,20 @@ var ImageCrop = class extends BaseComponent {
 		rotate: true,
 		enforceBoundary: true
 	};
-	#cancelLoad;
-	#canvas;
+	#cancelLoad = null;
+	#canvas = null;
 	#canvasHeight;
 	#canvasWidth;
-	#container;
-	#context;
+	#container = null;
+	#context = null;
 	#flipped;
-	#img;
+	#img = null;
 	#offsetX;
 	#offsetY;
-	#outerContainer;
+	#outerContainer = null;
 	#previewHeight;
 	#previewWidth;
-	#resize;
+	#resize = null;
 	#rotation;
 	#zoom;
 	/**
@@ -445,12 +445,12 @@ var ImageCrop = class extends BaseComponent {
 	#events() {
 		let lastPos;
 		let image;
-		const downEvent = (event) => {
+		const downHandler = (event) => {
 			if (event.button || !this.node || !this.#img || this.#cancelLoad) return false;
 			image = this.#img;
 			lastPos = getPosition(event);
 		};
-		const moveEvent = (event) => {
+		const moveHandler = (event) => {
 			if (!this.node || this.#img !== image || this.#cancelLoad) return;
 			const newPos = getPosition(event);
 			this.#offsetX += (newPos.x - lastPos.x) / this.#zoom;
@@ -460,21 +460,21 @@ var ImageCrop = class extends BaseComponent {
 			this.#updatePreview();
 			$.triggerEvent(this.node, "update.ui.imagecrop");
 		};
-		const dragEvent = $.mouseDragFactory(downEvent, moveEvent);
-		$.addEvent(this.#container, "mousedown.ui.imagecrop touchstart.ui.imagecrop", dragEvent);
+		const dragHandler = $.mouseDragFactory(downHandler, moveHandler);
+		$.addEvent(this.#container, "mousedown.ui.imagecrop touchstart.ui.imagecrop", dragHandler);
 		$.addEvent(this.#container, "touchend.ui.imagecrop", (event) => {
 			if (event.touches.length === 1) lastPos = getPosition(event);
 		});
 		if (this.options.resize) {
 			let lastPos;
 			let image;
-			const downEvent = (event) => {
+			const downHandler = (event) => {
 				if (event.button || !this.node || !this.#img || this.#cancelLoad) return false;
 				event.stopPropagation();
 				image = this.#img;
 				lastPos = getPosition(event);
 			};
-			const moveEvent = (event) => {
+			const moveHandler = (event) => {
 				if (!this.node || this.#img !== image || this.#cancelLoad) return;
 				const newPos = getPosition(event);
 				const width = this.#previewWidth + newPos.x - lastPos.x;
@@ -484,18 +484,18 @@ var ImageCrop = class extends BaseComponent {
 				this.#updatePreview();
 				$.triggerEvent(this.node, "update.ui.imagecrop");
 			};
-			const dragEvent = $.mouseDragFactory(downEvent, moveEvent);
-			$.addEvent(this.#resize, "mousedown.ui.imagecrop", dragEvent);
+			const dragHandler = $.mouseDragFactory(downHandler, moveHandler);
+			$.addEvent(this.#resize, "mousedown.ui.imagecrop", dragHandler);
 		}
 		if (this.options.zoom) {
 			let lastDist;
 			let image;
-			const downEvent = (event) => {
+			const downHandler = (event) => {
 				if (!this.node || !this.#img || this.#cancelLoad) return false;
 				image = this.#img;
 				lastDist = getTouchDistance(event);
 			};
-			const moveEvent = (event) => {
+			const moveHandler = (event) => {
 				if (!this.node || this.#img !== image || this.#cancelLoad) return;
 				const newDist = getTouchDistance(event);
 				const diff = newDist - lastDist;
@@ -506,8 +506,8 @@ var ImageCrop = class extends BaseComponent {
 				this.#updatePreview();
 				$.triggerEvent(this.node, "update.ui.imagecrop");
 			};
-			const dragEvent = $.mouseDragFactory(downEvent, moveEvent, null, { touches: 2 });
-			$.addEvent(this.#container, "touchstart.ui.imagecrop", dragEvent);
+			const dragHandler = $.mouseDragFactory(downHandler, moveHandler, null, { touches: 2 });
+			$.addEvent(this.#container, "touchstart.ui.imagecrop", dragHandler);
 			$.addEvent(this.#container, "wheel.ui.imagecrop", (event) => {
 				if (!this.node || !this.#img || this.#cancelLoad) return;
 				event.preventDefault();

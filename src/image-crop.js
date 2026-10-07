@@ -69,20 +69,20 @@ export default class ImageCrop extends BaseComponent {
         enforceBoundary: true,
     };
 
-    #cancelLoad;
-    #canvas;
+    #cancelLoad = null;
+    #canvas = null;
     #canvasHeight;
     #canvasWidth;
-    #container;
-    #context;
+    #container = null;
+    #context = null;
     #flipped;
-    #img;
+    #img = null;
     #offsetX;
     #offsetY;
-    #outerContainer;
+    #outerContainer = null;
     #previewHeight;
     #previewWidth;
-    #resize;
+    #resize = null;
     #rotation;
     #zoom;
 
@@ -547,7 +547,7 @@ export default class ImageCrop extends BaseComponent {
         let lastPos;
         let image;
 
-        const downEvent = (event) => {
+        const downHandler = (event) => {
             if (event.button || !this.node || !this.#img || this.#cancelLoad) {
                 return false;
             }
@@ -556,7 +556,7 @@ export default class ImageCrop extends BaseComponent {
             lastPos = getPosition(event);
         };
 
-        const moveEvent = (event) => {
+        const moveHandler = (event) => {
             if (!this.node || this.#img !== image || this.#cancelLoad) {
                 return;
             }
@@ -573,9 +573,9 @@ export default class ImageCrop extends BaseComponent {
             $.triggerEvent(this.node, 'update.ui.imagecrop');
         };
 
-        const dragEvent = $.mouseDragFactory(downEvent, moveEvent);
+        const dragHandler = $.mouseDragFactory(downHandler, moveHandler);
 
-        $.addEvent(this.#container, 'mousedown.ui.imagecrop touchstart.ui.imagecrop', dragEvent);
+        $.addEvent(this.#container, 'mousedown.ui.imagecrop touchstart.ui.imagecrop', dragHandler);
 
         $.addEvent(this.#container, 'touchend.ui.imagecrop', (event) => {
             if (event.touches.length === 1) {
@@ -588,7 +588,7 @@ export default class ImageCrop extends BaseComponent {
             let lastPos;
             let image;
 
-            const downEvent = (event) => {
+            const downHandler = (event) => {
                 if (event.button || !this.node || !this.#img || this.#cancelLoad) {
                     return false;
                 }
@@ -599,7 +599,7 @@ export default class ImageCrop extends BaseComponent {
                 lastPos = getPosition(event);
             };
 
-            const moveEvent = (event) => {
+            const moveHandler = (event) => {
                 if (!this.node || this.#img !== image || this.#cancelLoad) {
                     return;
                 }
@@ -616,16 +616,16 @@ export default class ImageCrop extends BaseComponent {
                 $.triggerEvent(this.node, 'update.ui.imagecrop');
             };
 
-            const dragEvent = $.mouseDragFactory(downEvent, moveEvent);
+            const dragHandler = $.mouseDragFactory(downHandler, moveHandler);
 
-            $.addEvent(this.#resize, 'mousedown.ui.imagecrop', dragEvent);
+            $.addEvent(this.#resize, 'mousedown.ui.imagecrop', dragHandler);
         }
 
         if (this.options.zoom) {
             let lastDist;
             let image;
 
-            const downEvent = (event) => {
+            const downHandler = (event) => {
                 if (!this.node || !this.#img || this.#cancelLoad) {
                     return false;
                 }
@@ -634,7 +634,7 @@ export default class ImageCrop extends BaseComponent {
                 lastDist = getTouchDistance(event);
             };
 
-            const moveEvent = (event) => {
+            const moveHandler = (event) => {
                 if (!this.node || this.#img !== image || this.#cancelLoad) {
                     return;
                 }
@@ -653,9 +653,9 @@ export default class ImageCrop extends BaseComponent {
                 $.triggerEvent(this.node, 'update.ui.imagecrop');
             };
 
-            const dragEvent = $.mouseDragFactory(downEvent, moveEvent, null, { touches: 2 });
+            const dragHandler = $.mouseDragFactory(downHandler, moveHandler, null, { touches: 2 });
 
-            $.addEvent(this.#container, 'touchstart.ui.imagecrop', dragEvent);
+            $.addEvent(this.#container, 'touchstart.ui.imagecrop', dragHandler);
 
             $.addEvent(this.#container, 'wheel.ui.imagecrop', (event) => {
                 if (!this.node || !this.#img || this.#cancelLoad) {
