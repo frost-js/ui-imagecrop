@@ -227,7 +227,7 @@ var ImageCrop = class extends BaseComponent {
 				reader.onabort = null;
 				image.onload = null;
 				image.onerror = null;
-				if (url) URL.revokeObjectURL(url);
+				if (url) window.URL.revokeObjectURL(url);
 				this.#cancelLoad = null;
 			};
 			const fail = (error) => {
@@ -285,7 +285,7 @@ var ImageCrop = class extends BaseComponent {
 				try {
 					orientation = getOrientation(reader.result, true);
 					if (!this.options.exifOrientation) orientation = 1;
-					url = URL.createObjectURL(new Blob([reader.result], { type: file.type }));
+					url = window.URL.createObjectURL(new window.Blob([reader.result], { type: file.type }));
 					$.setProperty(image, "src", url);
 				} catch (error) {
 					fail(error);

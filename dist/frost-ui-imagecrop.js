@@ -259,7 +259,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					reader.onabort = null;
 					image.onload = null;
 					image.onerror = null;
-					if (url) URL.revokeObjectURL(url);
+					if (url) window.URL.revokeObjectURL(url);
 					this.#cancelLoad = null;
 				};
 				const fail = (error) => {
@@ -317,7 +317,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					try {
 						orientation = getOrientation(reader.result, true);
 						if (!this.options.exifOrientation) orientation = 1;
-						url = URL.createObjectURL(new Blob([reader.result], { type: file.type }));
+						url = window.URL.createObjectURL(new window.Blob([reader.result], { type: file.type }));
 						_fr0st_query.default.setProperty(image, "src", url);
 					} catch (error) {
 						fail(error);

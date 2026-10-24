@@ -208,7 +208,7 @@ export default class ImageCrop extends BaseComponent {
                 image.onerror = null;
 
                 if (url) {
-                    URL.revokeObjectURL(url);
+                    window.URL.revokeObjectURL(url);
                 }
 
                 this.#cancelLoad = null;
@@ -292,7 +292,7 @@ export default class ImageCrop extends BaseComponent {
                         orientation = 1;
                     }
 
-                    url = URL.createObjectURL(new Blob([reader.result], { type: file.type }));
+                    url = window.URL.createObjectURL(new window.Blob([reader.result], { type: file.type }));
                     $.setProperty(image, 'src', url);
                 } catch (error) {
                     fail(error);

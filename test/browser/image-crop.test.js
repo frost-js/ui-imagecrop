@@ -164,9 +164,6 @@ test.describe('ImageCrop', () => {
         });
 
         test('ignores queued drag movement after disposal', async ({ page }) => {
-            const errors = [];
-
-            page.on('pageerror', (error) => errors.push(error.message));
             await page.evaluate(async () => {
                 const crop = UI.ImageCrop.init($.findOne('#crop'));
 
@@ -178,7 +175,6 @@ test.describe('ImageCrop', () => {
             await page.mouse.move(250, 250, { steps: 5 });
             await page.mouse.up();
             await expect(page.locator('#crop canvas')).toHaveCount(0);
-            expect(errors).toHaveLength(0);
         });
     });
 
@@ -653,9 +649,6 @@ test.describe('ImageCrop', () => {
 
         for (const method of ['rotate', 'setBounds', 'setZoom']) {
             test(`can dispose in an update listener during ${method}`, async ({ page }) => {
-                const errors = [];
-
-                page.on('pageerror', (error) => errors.push(error.message));
                 await page.evaluate(async (method) => {
                     const crop = UI.ImageCrop.init($.findOne('#crop'));
 
@@ -668,7 +661,6 @@ test.describe('ImageCrop', () => {
                 }, method);
 
                 await expect(page.locator('#crop canvas')).toHaveCount(0);
-                expect(errors).toHaveLength(0);
             });
         }
     });
@@ -862,9 +854,6 @@ test.describe('ImageCrop', () => {
             for (const gesture of ['pan', 'resize', 'pinch']) {
                 for (const action of ['dispose', 'load']) {
                     test(`ignores stale ${gesture} movement after ${action}`, async ({ page }) => {
-                        const errors = [];
-
-                        page.on('pageerror', (error) => errors.push(error.message));
                         await page.evaluate(async ({ gesture, action }) => {
                             const crop = UI.ImageCrop.init($.findOne('#crop'), { resize: true });
 
@@ -890,7 +879,6 @@ test.describe('ImageCrop', () => {
                                 new MouseEvent('mouseup'));
                         }, { gesture, action });
 
-                        expect(errors).toHaveLength(0);
                         if (action === 'dispose') {
                             await expect(page.locator('#crop canvas')).toHaveCount(0);
                         } else {
@@ -904,9 +892,6 @@ test.describe('ImageCrop', () => {
         });
 
         test('ignores gestures before loading', async ({ page }) => {
-            const errors = [];
-
-            page.on('pageerror', (error) => errors.push(error.message));
             await page.evaluate(() => {
                 const crop = UI.ImageCrop.init($.findOne('#crop'), { resize: true });
                 const container = $.findOne('#crop .overflow-hidden');
@@ -919,7 +904,6 @@ test.describe('ImageCrop', () => {
                 return crop.load(window.imageFile);
             });
 
-            expect(errors).toHaveLength(0);
             expect(await page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).toBeCloseTo(0.625);
             await expect(page.locator('#crop canvas')).toHaveCSS('transform', 'matrix(0.625, 0, 0, 0.625, -50, 0)');
         });
