@@ -140,6 +140,7 @@ var ImageCrop = class extends BaseComponent {
 	* Creates an ImageCrop.
 	* @param {HTMLElement} node The input node.
 	* @param {ImageCropOptions} [options] The ImageCrop options.
+	* @throws {RangeError} When the dimensions or zoom limits are invalid.
 	*/
 	constructor(node, options) {
 		super(node, options);

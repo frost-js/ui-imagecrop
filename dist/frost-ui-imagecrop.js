@@ -172,6 +172,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Creates an ImageCrop.
 		* @param {HTMLElement} node The input node.
 		* @param {ImageCropOptions} [options] The ImageCrop options.
+		* @throws {RangeError} When the dimensions or zoom limits are invalid.
 		*/
 		constructor(node, options) {
 			super(node, options);
