@@ -2,6 +2,8 @@ import $ from '@fr0st/query';
 import { BaseComponent, getPosition } from '@fr0st/ui';
 import { getOrientation, getTouchDistance } from './helpers.js';
 
+const window = $.getWindow();
+
 /**
  * @typedef {object} ImageCropOptions
  * @property {number} [previewWidth=300] The initial viewport width in pixels.
@@ -192,8 +194,8 @@ export default class ImageCrop extends BaseComponent {
         this.#cancelLoad?.();
 
         return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            const image = new Image();
+            const reader = new window.FileReader();
+            const image = new window.Image();
 
             let url;
             let orientation;
@@ -215,7 +217,7 @@ export default class ImageCrop extends BaseComponent {
             const fail = (error) => {
                 cleanup();
 
-                if (reader.readyState === FileReader.LOADING) {
+                if (reader.readyState === window.FileReader.LOADING) {
                     reader.abort();
                 }
 

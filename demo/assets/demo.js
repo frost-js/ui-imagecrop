@@ -142,7 +142,7 @@ $.ready(() => {
         }
     };
 
-    const loadSample = () => loadFile(fetch(globalThis.testImage).then((response) => response.blob()));
+    const loadSample = () => loadFile(fetch(globalThis.sampleImage).then((response) => response.blob()));
 
     const run = (callback, output = '#method-output') => {
         if (!ready || loading) {

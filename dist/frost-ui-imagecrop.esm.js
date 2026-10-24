@@ -57,6 +57,7 @@ function getTouchDistance(event) {
 
 //#endregion
 //#region src/image-crop.js
+var window = $.getWindow();
 /**
 * @typedef {object} ImageCropOptions
 * @property {number} [previewWidth=300] The initial viewport width in pixels.
@@ -216,8 +217,8 @@ var ImageCrop = class extends BaseComponent {
 		if ([x, y].some((value) => value !== null && !Number.isFinite(value)) || zoom !== null && (!Number.isFinite(zoom) || zoom <= 0)) throw new RangeError("Image offsets must be finite and zoom must be positive.");
 		this.#cancelLoad?.();
 		return new Promise((resolve, reject) => {
-			const reader = new FileReader();
-			const image = new Image();
+			const reader = new window.FileReader();
+			const image = new window.Image();
 			let url;
 			let orientation;
 			const cleanup = () => {
@@ -231,7 +232,7 @@ var ImageCrop = class extends BaseComponent {
 			};
 			const fail = (error) => {
 				cleanup();
-				if (reader.readyState === FileReader.LOADING) reader.abort();
+				if (reader.readyState === window.FileReader.LOADING) reader.abort();
 				$.removeAttribute(image, "src");
 				reject(error);
 			};

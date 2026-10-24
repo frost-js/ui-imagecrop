@@ -38,6 +38,14 @@ jobs:
       - name: Run tests
         run: npm run test:browser -- --project=chromium --workers=4
 
+      - name: Verify generated bundles are current
+        run: |
+          if [ -n "$(git status --porcelain --untracked-files=all -- dist)" ]; then
+            git status --short --untracked-files=all -- dist
+            echo "::error::Generated bundles must be current and tracked. Run npm run build and commit dist."
+            exit 1
+          fi
+
       - name: Validate package contents
         run: npm pack --dry-run
 
