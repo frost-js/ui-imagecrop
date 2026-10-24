@@ -182,6 +182,50 @@ test.describe('ImageCrop', () => {
         });
     });
 
+    test.describe('#getBounds', () => {
+        for (const { name, get } of [
+            { name: 'class', get: () => $.getData('#crop', 'imagecrop').getBounds() },
+            { name: 'QuerySet', get: () => $('#crop').imagecrop('getBounds') },
+        ]) {
+            test(`returns source coordinates (${name})`, async ({ page }) => {
+                await page.evaluate(async () => {
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
+                });
+
+                const bounds = await page.evaluate(get);
+
+                for (const [index, expected] of [80, 0, 560, 480].entries()) {
+                    expect(bounds[index]).toBeCloseTo(expected);
+                }
+            });
+        }
+
+        test('rejects calls before loading an image', async ({ page }) => {
+            await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
+            await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds())).rejects.toThrow('Load an image');
+        });
+    });
+
+    test.describe('#getZoom', () => {
+        for (const { name, get } of [
+            { name: 'class', get: () => $.getData('#crop', 'imagecrop').getZoom() },
+            { name: 'QuerySet', get: () => $('#crop').imagecrop('getZoom') },
+        ]) {
+            test(`returns the fitted zoom (${name})`, async ({ page }) => {
+                await page.evaluate(async () => {
+                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
+                });
+
+                expect(await page.evaluate(get)).toBeCloseTo(0.625);
+            });
+        }
+
+        test('rejects calls before loading an image', async ({ page }) => {
+            await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
+            await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).rejects.toThrow('Load an image');
+        });
+    });
+
     test.describe('#load', () => {
         for (const { name, load } of [
             { name: 'class', load: () => UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile) },
@@ -322,50 +366,6 @@ test.describe('ImageCrop', () => {
 
             await instance.evaluate((value) => value.dispose());
             await expect(instance.evaluate((value) => value.load(window.imageFile))).rejects.toThrow('disposed');
-        });
-    });
-
-    test.describe('#getBounds', () => {
-        for (const { name, get } of [
-            { name: 'class', get: () => $.getData('#crop', 'imagecrop').getBounds() },
-            { name: 'QuerySet', get: () => $('#crop').imagecrop('getBounds') },
-        ]) {
-            test(`returns source coordinates (${name})`, async ({ page }) => {
-                await page.evaluate(async () => {
-                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
-                });
-
-                const bounds = await page.evaluate(get);
-
-                for (const [index, expected] of [80, 0, 560, 480].entries()) {
-                    expect(bounds[index]).toBeCloseTo(expected);
-                }
-            });
-        }
-
-        test('rejects calls before loading an image', async ({ page }) => {
-            await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
-            await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').getBounds())).rejects.toThrow('Load an image');
-        });
-    });
-
-    test.describe('#getZoom', () => {
-        for (const { name, get } of [
-            { name: 'class', get: () => $.getData('#crop', 'imagecrop').getZoom() },
-            { name: 'QuerySet', get: () => $('#crop').imagecrop('getZoom') },
-        ]) {
-            test(`returns the fitted zoom (${name})`, async ({ page }) => {
-                await page.evaluate(async () => {
-                    await UI.ImageCrop.init($.findOne('#crop')).load(window.imageFile);
-                });
-
-                expect(await page.evaluate(get)).toBeCloseTo(0.625);
-            });
-        }
-
-        test('rejects calls before loading an image', async ({ page }) => {
-            await page.evaluate(() => UI.ImageCrop.init($.findOne('#crop')));
-            await expect(page.evaluate(() => $.getData('#crop', 'imagecrop').getZoom())).rejects.toThrow('Load an image');
         });
     });
 

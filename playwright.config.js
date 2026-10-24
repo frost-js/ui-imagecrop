@@ -1,5 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
+const baseURL = `http://localhost:${process.env.PORT ?? 3001}`;
+
 export default defineConfig({
     projects: [
         {
@@ -19,7 +21,7 @@ export default defineConfig({
     testMatch: '**/*.test.js',
     timeout: 30000,
     use: {
-        baseURL: 'http://localhost:3001',
+        baseURL,
         headless: true,
         reducedMotion: 'reduce',
         viewport: {
@@ -30,6 +32,6 @@ export default defineConfig({
     webServer: {
         command: 'node test/support/server/static-server.js',
         reuseExistingServer: !process.env.CI,
-        url: 'http://localhost:3001',
+        url: baseURL,
     },
 });

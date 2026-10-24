@@ -1,4 +1,5 @@
 /** @import { Page } from '@playwright/test'; */
+
 /**
  * Installs synthetic touch events on the test page.
  * @param {Page} page The test page.
