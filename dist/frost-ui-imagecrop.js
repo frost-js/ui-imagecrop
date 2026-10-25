@@ -1,10 +1,10 @@
 (function(global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ?  factory(exports, require('@fr0st/ui'), require('@fr0st/query')) :
-  typeof define === 'function' && define.amd ? define(['exports', '@fr0st/ui', '@fr0st/query'], factory) :
+  typeof exports === 'object' && typeof module !== 'undefined' ?  factory(exports, require("@fr0st/ui"), require("@fr0st/query")) :
+  typeof define === 'function' && define.amd ? define(['exports', "@fr0st/ui", "@fr0st/query"], factory) :
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory((global.UI = global.UI || {}), global.UI,global.fQuery));
 })(this, function(exports, _fr0st_ui, _fr0st_query) {
 Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
-//#region \0rolldown/runtime.js
+// \0rolldown/runtime.js
 	var __create = Object.create;
 	var __defProp = Object.defineProperty;
 	var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -30,10 +30,9 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		enumerable: true
 	}) : target, mod));
 
-//#endregion
 _fr0st_query = __toESM(_fr0st_query, 1);
 
-//#region src/helpers.js
+// src/helpers.js
 /**
 	* Reads JPEG EXIF orientation, optionally resetting its tag before decoding.
 	* @param {ArrayBuffer} data The image data. Resetting changes this buffer only.
@@ -87,8 +86,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		return _fr0st_query.default._dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
 	}
 
-//#endregion
-//#region src/image-crop.js
+// src/image-crop.js
 	var window = _fr0st_query.default.getWindow();
 	/**
 	* @typedef {object} ImageCropOptions
@@ -666,12 +664,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		}
 	};
 
-//#endregion
-//#region src/index.js
+// src/index.js
 	(0, _fr0st_ui.initComponent)("imagecrop", ImageCrop);
 	var src_default = ImageCrop;
 
-//#endregion
 exports.ImageCrop = src_default;
 });
 //# sourceMappingURL=frost-ui-imagecrop.js.map

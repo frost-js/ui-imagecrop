@@ -1,7 +1,7 @@
 import { BaseComponent, getPosition, getTouchPositions, initComponent } from "@fr0st/ui";
 import $ from "@fr0st/query";
 
-//#region src/helpers.js
+// src/helpers.js
 /**
 * Reads JPEG EXIF orientation, optionally resetting its tag before decoding.
 * @param {ArrayBuffer} data The image data. Resetting changes this buffer only.
@@ -55,8 +55,7 @@ function getTouchDistance(event) {
 	return $._dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
 }
 
-//#endregion
-//#region src/image-crop.js
+// src/image-crop.js
 var window = $.getWindow();
 /**
 * @typedef {object} ImageCropOptions
@@ -634,11 +633,9 @@ var ImageCrop = class extends BaseComponent {
 	}
 };
 
-//#endregion
-//#region src/index.js
+// src/index.js
 initComponent("imagecrop", ImageCrop);
 var src_default = ImageCrop;
 
-//#endregion
 export { src_default as default };
 //# sourceMappingURL=frost-ui-imagecrop.esm.js.map
